@@ -1,0 +1,45 @@
+---
+description: Always applied to the SpecHub workspace. Sets Mastra v1, pg/pgvector, local embedding conventions, tool patterns, and testing rules for this MCP server project.
+---
+
+# SpecHub MCP Server — Project Rules
+
+## Stack
+
+- **Runtime:** Node.js >= 22, ESM (`"type": "module"`)
+- **Framework:** Mastra v1 (`@mastra/core@^1.51`, `@mastra/mcp@^1.14`)
+- **DB:** PostgreSQL + pgvector (port 5434, db `spechub`) — direct `pg` driver, no ORM
+- **Embedding:** `@xenova/transformers` local pipeline (`Xenova/all-MiniLM-L6-v2`, 384 dims)
+- **Validation:** `zod@^3` for tool schemas
+- **Testing:** Vitest
+
+## Tool patterns
+
+- Use `createTool` from `@mastra/core/tools`.
+- `id` uses `snake_case`.
+- `inputSchema` and `outputSchema` are required (zod objects).
+- `execute(inputData)` receives the validated input directly — do NOT destructure `{ context }`.
+- Each tool is a separate file in `src/mastra/tools/`.
+- Register in `src/mastra/mcp.ts` under the `tools` record.
+
+## DB access
+
+- All database access goes through `dbOps` in `src/lib/db/queries.ts`.
+- Use `query()` from `src/lib/db/connection.ts` for parameterized SQL.
+- Embedding vectors serialized as `[0.1,0.2,...]` strings for pgvector.
+- Migrations use `CREATE ... IF NOT EXISTS` (idempotent).
+
+## Testing
+
+- Mock `dbOps` via `vi.mock("../src/lib/db/queries.js")`.
+- Embedding model is exercised with REAL calls (not mocked).
+- Factory functions (`buildSpec()`) for test data.
+- Test files: `tests/<tool-name>.test.ts`.
+
+## Code style
+
+- No semicolons.
+- 2-space indentation.
+- Single quotes.
+- ESM imports with `.js` extensions.
+- No comments unless explaining _why_.
