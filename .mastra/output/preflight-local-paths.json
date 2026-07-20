@@ -1,0 +1,1 @@
+[{"value":"postgresql://spechub:spechub@localhost","hint":"localhost in a connection string","module":"/Users/cezarpretto/projects/spec-hub/src/infrastructure/database/connection.ts"}]

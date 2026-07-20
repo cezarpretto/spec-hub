@@ -1,111 +1,79 @@
-import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
-import { initEmbedding, embeddingService } from "../src/lib/embedding/index.js";
-import type { SaveSpecInput, SaveSpecOutput } from "../src/lib/types.js";
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createContainer, asValue } from 'awilix'
 
-vi.mock("../src/lib/db/queries.js", () => ({
-  dbOps: {
-    upsertSpec: vi.fn(),
-    getSpecById: vi.fn(),
-    insertChangelog: vi.fn(),
-  },
-}));
-
-const { dbOps } = await import("../src/lib/db/queries.js");
-const { saveSpecTool } = await import("../src/mastra/tools/save-spec.js");
-
-function buildSpec(overrides: Partial<SaveSpecInput> = {}): SaveSpecInput {
-  return {
-    source_type: "JIRA",
-    source_key: "PROJ-42",
-    title: "Feature: Payment Gateway Integration",
-    content: [
-      "## Overview",
-      "This feature adds a payment gateway integration.",
-      "",
-      "### Kafka Contract",
-      "The payment event uses the following schema:",
-      "```json",
-      '{"event": "payment.processed", "amount": 100}',
-      "```",
-      "",
-      "### Error Handling",
-      "Retry with exponential backoff.",
-    ].join("\n"),
-    updated_by: "claude-code",
-    ...overrides,
-  };
+const mockSaveSpecUseCase = {
+  execute: vi.fn(),
 }
 
-const mockSpecId = "550e8400-e29b-41d4-a716-446655440000";
+const container = createContainer()
+container.register({
+  saveSpecUseCase: asValue(mockSaveSpecUseCase),
+})
 
-describe("save_spec", () => {
-  beforeAll(async () => {
-    await initEmbedding();
-  }, 60000);
+const { createSaveSpecTool } = await import('../src/mastra/tools/save-spec.js')
+const tool = createSaveSpecTool(container as any)
 
+function buildInput(overrides: Record<string, unknown> = {}) {
+  return {
+    source_type: 'JIRA',
+    source_key: 'PROJ-42',
+    title: 'Feature: Payment Gateway Integration',
+    content: '## Overview\n\nThis feature adds a payment gateway integration.\n\n### Kafka Contract\n\nThe payment event uses the following schema:\n```json\n{"event": "payment.processed", "amount": 100}\n```',
+    updated_by: 'claude-code',
+    ...overrides,
+  }
+}
+
+describe('save_spec', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-  });
+    vi.clearAllMocks()
+  })
 
-  it("creates a new spec with real embedding and changelog", async () => {
-    const input = buildSpec();
+  it('creates a new spec and returns correct output', async () => {
+    const input = buildInput()
 
-    vi.mocked(dbOps.upsertSpec).mockResolvedValue({
-      spec_id: mockSpecId,
-      status: "created",
-    });
-
-    const result = (await saveSpecTool.execute!(input)) as SaveSpecOutput;
-
-    expect(result).toEqual({
-      spec_id: mockSpecId,
+    mockSaveSpecUseCase.execute.mockResolvedValue({
+      spec_id: '550e8400-e29b-41d4-a716-446655440000',
       title: input.title,
-      status: "created",
-    });
+      status: 'created',
+    })
 
-    expect(dbOps.upsertSpec).toHaveBeenCalledTimes(1);
-
-    const upsertCall = vi.mocked(dbOps.upsertSpec).mock.calls[0][0];
-    expect(upsertCall.source_type).toBe(input.source_type);
-    expect(upsertCall.source_key).toBe(input.source_key);
-    expect(upsertCall.title).toBe(input.title);
-    expect(upsertCall.content).toBe(input.content);
-    expect(upsertCall.updated_by).toBe(input.updated_by);
-    expect(upsertCall.embedding).toBeInstanceOf(Array);
-    expect(upsertCall.embedding.length).toBe(384);
-  });
-
-  it("updates an existing spec (UPSERT) with real re-embedding", async () => {
-    const input = buildSpec({ title: "Updated Title" });
-
-    vi.mocked(dbOps.upsertSpec).mockResolvedValue({
-      spec_id: mockSpecId,
-      status: "updated",
-    });
-
-    const result = (await saveSpecTool.execute!(input)) as SaveSpecOutput;
+    const result = await tool.execute!(input)
 
     expect(result).toEqual({
-      spec_id: mockSpecId,
-      title: "Updated Title",
-      status: "updated",
-    });
+      spec_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: input.title,
+      status: 'created',
+    })
 
-    const upsertCall = vi.mocked(dbOps.upsertSpec).mock.calls[0][0];
-    expect(upsertCall.embedding).toBeInstanceOf(Array);
-    expect(upsertCall.embedding.length).toBe(384);
-  });
+    expect(mockSaveSpecUseCase.execute).toHaveBeenCalledTimes(1)
+    expect(mockSaveSpecUseCase.execute).toHaveBeenCalledWith(input)
+  })
 
-  it("fails when embedding generation throws and does not persist spec", async () => {
-    const input = buildSpec();
+  it('updates an existing spec and returns updated status', async () => {
+    const input = buildInput({ title: 'Updated Title' })
 
-    const spy = vi
-      .spyOn(embeddingService, "generateEmbedding")
-      .mockRejectedValueOnce(new Error("Model crashed"));
+    mockSaveSpecUseCase.execute.mockResolvedValue({
+      spec_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'Updated Title',
+      status: 'updated',
+    })
 
-    await expect(saveSpecTool.execute!(input)).rejects.toThrow("Model crashed");
+    const result = await tool.execute!(input)
 
-    expect(dbOps.upsertSpec).not.toHaveBeenCalled();
-    spy.mockRestore();
-  });
-});
+    expect(result).toEqual({
+      spec_id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'Updated Title',
+      status: 'updated',
+    })
+  })
+
+  it('propagates use case errors', async () => {
+    const input = buildInput()
+
+    mockSaveSpecUseCase.execute.mockRejectedValue(new Error('Embedding failed'))
+
+    await expect(tool.execute!(input)).rejects.toThrow('Embedding failed')
+    expect(mockSaveSpecUseCase.execute).toHaveBeenCalledTimes(1)
+  })
+})

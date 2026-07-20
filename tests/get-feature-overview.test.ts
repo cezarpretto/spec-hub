@@ -1,117 +1,74 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { GetFeatureOverviewOutput } from "../src/lib/types.js";
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createContainer, asValue } from 'awilix'
 
-vi.mock("../src/lib/db/queries.js", () => ({
-  dbOps: {
-    upsertSpec: vi.fn(),
-    getSpecById: vi.fn(),
-    insertChangelog: vi.fn(),
-  },
-}));
+const mockGetFeatureOverviewUseCase = {
+  execute: vi.fn(),
+}
 
-const { dbOps } = await import("../src/lib/db/queries.js");
-const { getFeatureOverviewTool } = await import("../src/mastra/tools/get-feature-overview.js");
+const container = createContainer()
+container.register({
+  getFeatureOverviewUseCase: asValue(mockGetFeatureOverviewUseCase),
+})
 
-const mockSpecId = "550e8400-e29b-41d4-a716-446655440000";
+const { createGetFeatureOverviewTool } = await import('../src/mastra/tools/get-feature-overview.js')
+const tool = createGetFeatureOverviewTool(container as any)
 
-const mockSpec = {
-  id: mockSpecId,
-  source_type: "LINEAR",
-  source_key: "TEAM-99",
-  title: "Service: User Authentication",
-  content: [
-    "## Architecture",
-    "This service handles authentication for the platform.",
-    "",
-    "### Endpoints",
-    "- POST /login",
-    "- POST /register",
-    "",
-    "### Database Schema",
-    "Users table with bcrypt hashed passwords.",
-    "",
-    "## Testing",
-    "Integration tests with mocked OAuth provider.",
-    "",
-    "### Unit Tests",
-    "Cover all service methods.",
-    "",
-    "## Deployment",
-    "Docker container on port 8080.",
-  ].join("\n"),
-  updated_at: "2025-07-20T10:00:00.000Z",
-};
+const mockSpecId = '550e8400-e29b-41d4-a716-446655440000'
 
-describe("get_feature_overview", () => {
+const mockOutput = {
+  spec_id: mockSpecId,
+  title: 'Service: User Authentication',
+  source: { type: 'JIRA', key: 'SHELL-1010' },
+  sections: [
+    { heading: 'Architecture', level: 2 },
+    { heading: 'Endpoints', level: 3 },
+  ],
+  updated_at: '2025-07-20T10:00:00.000Z',
+}
+
+describe('get_feature_overview', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-  });
+    vi.clearAllMocks()
+  })
 
-  it("returns spec metadata and heading index", async () => {
-    vi.mocked(dbOps.getSpecById).mockResolvedValue(mockSpec);
+  it('returns spec metadata by spec_id', async () => {
+    mockGetFeatureOverviewUseCase.execute.mockResolvedValue(mockOutput)
 
-    const result = (await getFeatureOverviewTool.execute!({ spec_id: mockSpecId })) as GetFeatureOverviewOutput;
+    const result = await tool.execute!({ spec_id: mockSpecId })
 
-    expect(result.spec_id).toBe(mockSpecId);
-    expect(result.title).toBe(mockSpec.title);
-    expect(result.source).toEqual({
-      type: "LINEAR",
-      key: "TEAM-99",
-    });
-    expect(result.updated_at).toBe(mockSpec.updated_at);
+    expect(result.spec_id).toBe(mockSpecId)
+    expect(mockGetFeatureOverviewUseCase.execute).toHaveBeenCalledWith({ spec_id: mockSpecId })
+  })
 
-    expect(result.sections).toHaveLength(6);
-    expect(result.sections).toEqual([
-      { heading: "Architecture", level: 2 },
-      { heading: "Endpoints", level: 3 },
-      { heading: "Database Schema", level: 3 },
-      { heading: "Testing", level: 2 },
-      { heading: "Unit Tests", level: 3 },
-      { heading: "Deployment", level: 2 },
-    ]);
-  });
+  it('resolves spec by source_type + source_key', async () => {
+    mockGetFeatureOverviewUseCase.execute.mockResolvedValue(mockOutput)
 
-  it("returns error for non-existent spec", async () => {
-    vi.mocked(dbOps.getSpecById).mockResolvedValue(null);
+    const result = await tool.execute!({ source_type: 'JIRA', source_key: 'SHELL-1010' })
+
+    expect(result.spec_id).toBe(mockSpecId)
+    expect(mockGetFeatureOverviewUseCase.execute).toHaveBeenCalledWith({
+      source_type: 'JIRA',
+      source_key: 'SHELL-1010',
+    })
+  })
+
+  it('resolves spec via spec_id with SOURCE_TYPE:SOURCE_KEY format', async () => {
+    mockGetFeatureOverviewUseCase.execute.mockResolvedValue(mockOutput)
+
+    await tool.execute!({ spec_id: 'JIRA:SHELL-1010' })
+
+    expect(mockGetFeatureOverviewUseCase.execute).toHaveBeenCalledWith({
+      spec_id: 'JIRA:SHELL-1010',
+    })
+  })
+
+  it('propagates not-found error', async () => {
+    mockGetFeatureOverviewUseCase.execute.mockRejectedValue(
+      new Error('Spec not found for JIRA/SHELL-9999'),
+    )
 
     await expect(
-      getFeatureOverviewTool.execute!({ spec_id: "non-existent-id" }),
-    ).rejects.toThrow("Spec not found: non-existent-id");
-
-    expect(dbOps.getSpecById).toHaveBeenCalledWith("non-existent-id");
-  });
-
-  it("returns spec with no headings when content has none", async () => {
-    vi.mocked(dbOps.getSpecById).mockResolvedValue({
-      ...mockSpec,
-      content: "Plain text without any headings.",
-    });
-
-    const result = (await getFeatureOverviewTool.execute!({ spec_id: mockSpecId })) as GetFeatureOverviewOutput;
-
-    expect(result.sections).toEqual([]);
-  });
-
-  it("parses only ## and ### headings, ignoring # and ####", async () => {
-    vi.mocked(dbOps.getSpecById).mockResolvedValue({
-      ...mockSpec,
-      content: [
-        "# Title Level 1",
-        "intro text",
-        "## H2 Section",
-        "stuff",
-        "### H3 Subsection",
-        "more stuff",
-        "#### H4 Ignored",
-        "details",
-      ].join("\n"),
-    });
-
-    const result = (await getFeatureOverviewTool.execute!({ spec_id: mockSpecId })) as GetFeatureOverviewOutput;
-
-    expect(result.sections).toEqual([
-      { heading: "H2 Section", level: 2 },
-      { heading: "H3 Subsection", level: 3 },
-    ]);
-  });
-});
+      tool.execute!({ source_type: 'JIRA', source_key: 'SHELL-9999' }),
+    ).rejects.toThrow('Spec not found for JIRA/SHELL-9999')
+  })
+})

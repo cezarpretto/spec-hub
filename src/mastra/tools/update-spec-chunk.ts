@@ -2,34 +2,29 @@ import { createTool } from '@mastra/core/tools'
 import { z } from 'zod'
 import type { AppContainer } from '../../container/types.js'
 
-export function createGetFeatureOverviewTool(container: AppContainer) {
+export function createUpdateSpecChunkTool(container: AppContainer) {
   return createTool({
-    id: 'get_feature_overview',
+    id: 'update_spec_chunk',
     description:
-      'Returns spec metadata and an index of headings (## and ###) extracted from the Markdown content. Identify the spec by its UUID or by source_type + source_key (e.g. JIRA + SHELL-1010).',
+      'Edit a specific section of a spec by its heading. Finds the section by Markdown heading (## or ###), replaces its content, regenerates the embedding, and records a changelog entry. Last-write-wins semantics — no merge conflicts.',
     inputSchema: z.object({
       spec_id: z.string().optional().describe('UUID of the spec, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "JIRA:SHELL-1010")'),
       source_type: z.string().optional().describe("External tracking tool type (e.g. 'JIRA', 'LINEAR', 'GITHUB')"),
       source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1010')"),
+      section_heading: z.string().describe('The heading text of the section to replace (without ## markers, e.g. "Kafka Contract")'),
+      new_content: z.string().describe('New Markdown content to replace the section with (excluding the heading line)'),
+      updated_by: z.string().describe("Identifier of who/what is making the change (e.g. 'claude-code', 'cezar@corp')"),
     }).refine(
       data => data.spec_id || (data.source_type && data.source_key),
       { message: 'Either spec_id or (source_type + source_key) must be provided' },
     ),
     outputSchema: z.object({
       spec_id: z.string(),
-      title: z.string(),
-      source: z.object({
-        type: z.string(),
-        key: z.string(),
-      }),
-      sections: z.array(z.object({
-        heading: z.string(),
-        level: z.number(),
-      })),
-      updated_at: z.string(),
+      section: z.string(),
+      status: z.enum(['updated', 'not_found']),
     }),
     execute: async (inputData) => {
-      const useCase = container.resolve('getFeatureOverviewUseCase')
+      const useCase = container.resolve('updateSpecChunkUseCase')
       return useCase.execute(inputData)
     },
   })

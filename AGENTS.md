@@ -1,20 +1,35 @@
 # SpecHub MCP Server
 
 Servidor MCP centralizado para armazenamento e busca de especificacoes tecnicas.
-Stack: Node.js + Mastra v1 + PostgreSQL/pgvector + @xenova/transformers (all-MiniLM-L6-v2).
+Stack: Node.js + Mastra v1 + Sequelize + PostgreSQL/pgvector + @xenova/transformers (all-MiniLM-L6-v2).
 
 ## Project layout
 
 ```
-src/mastra/index.ts          # Mastra instance + startup (auto-migrate, embedding)
-src/mastra/mcp.ts            # MCPServer definition (tool registration)
-src/mastra/tools/*.ts        # MCP tools (save_spec, get_feature_overview, ...)
-src/lib/db/connection.ts     # pg Pool (connectionString from DATABASE_URL env)
-src/lib/db/migrations.ts     # CREATE EXTENSION, CREATE TABLE IF NOT EXISTS, indices
-src/lib/db/queries.ts        # upsertSpec, getSpecById, insertChangelog
-src/lib/embedding/index.ts   # Xenova/all-MiniLM-L6-v2 (384 dims), init + generate
-src/lib/types.ts             # Shared interfaces
-tests/*.test.ts              # Vitest tests
+src/
+  domain/                              # Enterprise business rules
+    entities.ts                        # Spec, Task, ChangelogEntry interfaces
+    repositories.ts                    # ISpecRepository, ITaskRepository, IChangelogRepository
+    services.ts                        # IEmbeddingService interface
+  application/                         # Use cases (orchestration)
+    dto.ts                             # Input/Output DTOs
+    use-cases/                         # One class per use case
+  infrastructure/                      # Adapters, frameworks, drivers
+    database/
+      connection.ts                    # Sequelize instance (connectionString from DATABASE_URL)
+      umzug.ts                         # Umzug instance (migration runner)
+      migrations/                      # Individual migration files (001-xxx.ts, 002-xxx.ts, ...)
+      models/                          # sequelize.define() model definitions
+    repositories/                      # Sequelize implementations of domain repository interfaces
+    services/                          # XenovaEmbeddingService (implements IEmbeddingService)
+  container/                           # IoC / DI (Awilix)
+    index.ts                           # buildContainer() — registers all singletons
+    types.ts                           # AppContainer type alias
+  mastra/                              # Interface / MCP presentation
+    index.ts                           # Entry point: migrates, builds container, starts Mastra
+    mcp.ts                             # createSpecHubMcpServer(container)
+    tools/                             # Factory functions: createXxxTool(container)
+tests/                                 # Vitest tests (mock use cases via Awilix asValue)
 ```
 
 ## Commands
@@ -29,45 +44,132 @@ docker compose up -d # start PostgreSQL/pgvector on :5434
 
 ## Architecture conventions
 
+### Clean Architecture layers
+
+- **Domain** (`src/domain/`): interfaces only. No imports from other layers. Defines entities, repository abstractions (ISP), and service abstractions.
+- **Application** (`src/application/`): use cases with constructor injection. Depend only on domain interfaces. DTOs define input/output contracts.
+- **Infrastructure** (`src/infrastructure/`): Sequelize models, repository implementations, embedding service. Implements domain interfaces.
+- **Interface** (`src/mastra/`): MCP tools as factory functions receiving the container. Resolve use cases at runtime.
+- **Container** (`src/container/`): Awilix IoC. All registrations are SINGLETON. Wires interfaces -> implementations.
+
+### Dependency Injection (Awilix)
+
+- `buildContainer()` in `src/container/index.ts` creates and registers all dependencies.
+- Use cases receive repositories and services via **single object** constructor injection (PROXY mode).
+- Awilix PROXY mode passes the entire cradle as one argument — constructors must receive `deps: Dependencies`.
+- In tests, register mock use cases with `asValue(mockUseCase)`.
+
+```ts
+// Awilix PROXY mode: single deps object, not multiple params
+class MyUseCase {
+  private readonly specRepository: ISpecRepository
+
+  constructor(deps: { specRepository: ISpecRepository }) {
+    this.specRepository = deps.specRepository
+  }
+}
+
+// Example: registering a mock in tests
+import { createContainer, asValue } from 'awilix'
+const mockUseCase = { execute: vi.fn() }
+const container = createContainer()
+container.register({ saveSpecUseCase: asValue(mockUseCase) })
+```
+
 ### Tools (MCP)
 
-- Use `createTool` from `@mastra/core/tools` with `zod` schemas.
+- Each tool file exports a factory function that receives `AppContainer`.
 - `inputSchema` defines the JSON contract. `outputSchema` defines the return shape.
-- `execute(inputData)` receives parsed input directly; DO NOT destructure `{ context }`.
-- Tools live in `src/mastra/tools/` and are registered in `src/mastra/mcp.ts`.
-- Tool IDs use `snake_case`: `save_spec`, `get_feature_overview`.
+- `execute(inputData)` resolves the use case from container and delegates.
+- Tool IDs use `snake_case`: `save_spec`, `get_feature_overview`, `search_spec_context`.
 
-### Database
+### Database (Sequelize)
 
-- `dbOps` (in `src/lib/db/queries.ts`) is the single seam for database access.
-- All DB calls go through `query()` from `connection.ts` (pg Pool).
+- `sequelize.define()` for model definitions in `src/infrastructure/database/models/`.
+- Repositories implement domain interfaces, using Sequelize models internally.
+- `raw: true` used for read queries; `create`/`update` for writes.
+- Embedding serialization: `[0.1,0.2,...]` string stored in `embedding TEXT` column.
 - UPSERT semantics: find by `(source_type, source_key)`, then INSERT or UPDATE.
-- Embedding serialization: `toPgVector(embedding[])` => `[0.1,0.2,...]` string.
-- In tests, mock `dbOps` via `vi.mock("../src/lib/db/queries.js")`.
+
+### Migrations (Umzug)
+
+Migrations are managed via **Umzug v3** with `SequelizeStorage`. Each migration is a separate file under `src/infrastructure/database/migrations/`.
+
+**File naming:** `YYYYMMDDHHmmss-descriptive-name.ts` (e.g. `20260720180005-add-user-table.ts`)
+
+**Template for new migrations:**
+
+```ts
+// src/infrastructure/database/migrations/20260720180005-add-user-table.ts
+import type { Sequelize } from 'sequelize'
+
+export const m20260720180005AddUserTable = {
+  name: '20260720180005-add-user-table',
+  async up(sequelize: Sequelize) {
+    await sequelize.query(`CREATE TABLE IF NOT EXISTS users (...)`);
+  },
+  async down(sequelize: Sequelize) {
+    await sequelize.query(`DROP TABLE IF EXISTS users`);
+  },
+}
+```
+
+**After creating the file, register it in `migrations/index.ts`:**
+
+```ts
+import { m20260720180005AddUserTable } from './20260720180005-add-user-table.js'
+// Add to the exports and migrations array
+export const migrations = [
+  ...existing,
+  m20260720180005AddUserTable,
+]
+```
+
+**How migrations run:**
+
+- On startup (`src/mastra/index.ts`), `umzug.up()` runs all pending migrations automatically.
+- Umzug tracks executed migrations in the `SequelizeMeta` table (created automatically).
+- Already-executed migrations are skipped.
+
+**CLI commands (manual):**
+
+```bash
+# Run pending migrations (happens on startup, can also run via script)
+node -e "import('./src/infrastructure/database/umzug.js').then(m => m.umzug.up())"
+
+# Revert last migration
+node -e "import('./src/infrastructure/database/umzug.js').then(m => m.umzug.down())"
+
+# Show migration status
+node -e "import('./src/infrastructure/database/umzug.js').then(m => m.umzug.pending().then(p => console.log('Pending:', p.map(m => m.name))))"
+
+# Revert all migrations
+node -e "import('./src/infrastructure/database/umzug.js').then(m => m.umzug.down({ to: 0 }))"
+```
 
 ### Embedding
 
 - Model: `Xenova/all-MiniLM-L6-v2`, loaded via `@xenova/transformers` pipeline.
 - 384-dimensional vectors, generated with `pooling: "mean", normalize: true`.
-- `initEmbedding()` must be called before any `generateEmbedding()` call.
-- In tests, embedding is exercised with REAL model calls (not mocked).
-- Embedding failure => spec is NOT persisted (tested).
+- `XenovaEmbeddingService.initialize()` called once at startup.
+- In tests, embedding service is NOT used — use cases are fully mocked.
 
 ### Testing
 
 - Framework: Vitest. Config: `vitest.config.ts`.
-- DB is mocked (`dbOps`); embedding is real (`FeatureExtractionPipeline`).
+- Use cases are mocked via Awilix `asValue()` — no real DB, no real embedding.
 - Tests validate JSON input -> JSON output contracts of tools.
-- Factory functions (`buildSpec()`) provide test data.
+- Factory functions (`buildInput()`) provide test data.
 - Test file naming: `tests/<tool-name>.test.ts`.
 
 ### Startup flow
 
 1. `src/mastra/index.ts` loads via Mastra CLI (`mastra dev`).
-2. Top-level await calls `runMigrations()` then `initEmbedding()`.
-3. Mastra instance created with `mcpServers` and `server.port`.
-4. Auto-migration creates `specs`, `tasks`, `changelog` tables + indices (HNSW, GIN).
-5. MCPServer exposes tools over SSE/HTTP at configured port.
+2. Top-level await calls `umzug.up()` (runs pending migrations).
+3. Container is built (`buildContainer()`).
+4. `embeddingService.initialize()` loads the Xenova model.
+5. MCPServer is created with all tools.
+6. Mastra instance exposes tools over SSE/HTTP at configured port.
 
 ## Env vars
 
@@ -79,8 +181,11 @@ docker compose up -d # start PostgreSQL/pgvector on :5434
 ## Dependencies key decisions
 
 - `@mastra/core@^1.51` + `@mastra/mcp@^1.14`: Mastra v1 MCP framework.
+- `sequelize@^6`: ORM with `define()` models + repository pattern.
+- `awilix`: IoC container for dependency injection.
+- `umzug@^3`: Migration runner with SequelizeStorage.
 - `@xenova/transformers@^2.17`: local embedding, no external API.
-- `pg@^8`: direct PostgreSQL driver (no ORM).
+- `pg@^8`: PostgreSQL driver (used by Sequelize dialect).
 - `zod@^3`: input/output schema validation for tools.
 - `vitest@^4`: test runner.
 
