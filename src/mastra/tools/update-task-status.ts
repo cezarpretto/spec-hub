@@ -9,9 +9,9 @@ export function createUpdateTaskStatusTool(container: AppContainer) {
       'Mark a task as done or add a new task discovered during implementation. If task_id is provided, updates the existing task status. If omitted, creates a new task (requires intent, title, and context_snippet). Both paths record a changelog entry.',
     inputSchema: z.object({
       task_id: z.string().optional().describe('UUID of an existing task to update. If omitted, a new task is created.'),
-      spec_id: z.string().optional().describe('UUID of the spec, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "JIRA:SHELL-1010"). Required when creating a new task.'),
-      source_type: z.string().optional().describe("External tracking tool type (e.g. 'JIRA', 'LINEAR', 'GITHUB')"),
-      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1010')"),
+      spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234"). Required when creating a new task.'),
+      source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design')"),
+      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1234')"),
       repo: z.string().describe('Repository name (e.g. "service-payments-consumer")'),
       status: z.enum(['pending', 'in_progress', 'done']).describe('Task status to set'),
       intent: z.string().optional().describe('Normalized intent slug (required when creating a new task)'),

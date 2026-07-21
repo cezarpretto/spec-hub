@@ -6,11 +6,11 @@ export function createGetRepoTasksTool(container: AppContainer) {
   return createTool({
     id: 'get_repo_tasks',
     description:
-      'Returns only the active tasks (status != done) for a specific repository within a spec. Returns tasks grouped by intent as clean Markdown — minimal tokens, maximum focus. Identify the spec by its UUID or by source_type + source_key (e.g. JIRA + SHELL-1010).',
+      'Returns active tasks (status != done) for a specific repository within a document. Tasks are grouped by repo. Identify the document by UUID or by source_type + source_key (e.g. spec + SHELL-1234).',
     inputSchema: z.object({
-      spec_id: z.string().optional().describe('UUID of the spec, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "JIRA:SHELL-1010")'),
-      source_type: z.string().optional().describe("External tracking tool type (e.g. 'JIRA', 'LINEAR', 'GITHUB')"),
-      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1010')"),
+      spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234")'),
+      source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design')"),
+      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1234')"),
       repo: z.string().optional().describe('Repository name to filter tasks (e.g. "service-payments-consumer"). Omit to list all repos with active tasks.'),
     }).refine(
       data => data.spec_id || (data.source_type && data.source_key),

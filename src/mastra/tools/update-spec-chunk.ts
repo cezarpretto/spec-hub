@@ -6,11 +6,11 @@ export function createUpdateSpecChunkTool(container: AppContainer) {
   return createTool({
     id: 'update_spec_chunk',
     description:
-      'Edit a specific section of a spec by its heading. Finds the section by Markdown heading (## or ###), replaces its content, regenerates the embedding, and records a changelog entry. Last-write-wins semantics — no merge conflicts.',
+      'Edit a specific section of a document by its heading. Finds the section by Markdown heading (## or ###), replaces its content, regenerates the embedding, and records a changelog entry. Last-write-wins. Identify the document by UUID or by source_type + source_key (e.g. spec + SHELL-1234).',
     inputSchema: z.object({
-      spec_id: z.string().optional().describe('UUID of the spec, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "JIRA:SHELL-1010")'),
-      source_type: z.string().optional().describe("External tracking tool type (e.g. 'JIRA', 'LINEAR', 'GITHUB')"),
-      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1010')"),
+      spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234")'),
+      source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design')"),
+      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1234')"),
       section_heading: z.string().describe('The heading text of the section to replace (without ## markers, e.g. "Kafka Contract")'),
       new_content: z.string().describe('New Markdown content to replace the section with (excluding the heading line)'),
       updated_by: z.string().describe("Identifier of who/what is making the change (e.g. 'claude-code', 'cezar@corp')"),

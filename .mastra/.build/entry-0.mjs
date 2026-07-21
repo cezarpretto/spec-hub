@@ -405,6 +405,28 @@ class SequelizeSpecRepository {
       matches: scored.slice(0, params.limit)
     };
   }
+  async updateContent(specId, content, embedding, updatedBy) {
+    const existing = await SpecModel.findByPk(specId);
+    if (!existing) return null;
+    const embeddingStr = `[${embedding.join(",")}]`;
+    await existing.update({
+      content,
+      embedding: embeddingStr,
+      updated_by: updatedBy
+    });
+    const row = existing.get({ plain: true });
+    return {
+      id: row.id,
+      source_type: row.source_type,
+      source_key: row.source_key,
+      title: row.title,
+      content: row.content,
+      embedding: row.embedding ? this.fromPgVector(row.embedding) : null,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      updated_by: row.updated_by
+    };
+  }
   fromPgVector(vector) {
     return vector.slice(1, -1).split(",").map(Number);
   }
@@ -454,7 +476,42 @@ class SequelizeTaskRepository {
       where: { spec_id: specId, repo },
       raw: true
     });
-    return rows.map((row) => ({
+    return rows.map((row) => this.toDomain(row));
+  }
+  async findById(id) {
+    const row = await TaskModel.findByPk(id, { raw: true });
+    if (!row) return null;
+    return this.toDomain(row);
+  }
+  async findBySpecId(specId) {
+    const rows = await TaskModel.findAll({
+      where: { spec_id: specId },
+      raw: true
+    });
+    return rows.map((row) => this.toDomain(row));
+  }
+  async create(params) {
+    const created = await TaskModel.create({
+      spec_id: params.spec_id,
+      status: params.status,
+      repo: params.repo,
+      intent: params.intent,
+      title: params.title,
+      context_snippet: params.context_snippet,
+      updated_by: params.updated_by
+    });
+    const row = created.get({ plain: true });
+    return this.toDomain(row);
+  }
+  async updateStatus(taskId, status, updatedBy) {
+    const task = await TaskModel.findByPk(taskId);
+    if (!task) return null;
+    await task.update({ status, updated_by: updatedBy });
+    const row = task.get({ plain: true });
+    return this.toDomain(row);
+  }
+  toDomain(row) {
+    return {
       id: row.id,
       spec_id: row.spec_id,
       status: row.status,
@@ -465,7 +522,7 @@ class SequelizeTaskRepository {
       created_at: row.created_at,
       updated_at: row.updated_at,
       updated_by: row.updated_by
-    }));
+    };
   }
 }
 
@@ -526,7 +583,7 @@ class GetFeatureOverviewUseCase {
     const specId = await this.resolveSpecId(input);
     const spec = await this.specRepository.findById(specId);
     if (!spec) {
-      throw new Error(`Spec not found: ${specId}`);
+      throw new Error(`Spec not found: ${input.spec_id || `${input.source_type}/${input.source_key}`}`);
     }
     const sections = this.extractHeadings(spec.content);
     return {
@@ -541,7 +598,9 @@ class GetFeatureOverviewUseCase {
     };
   }
   async resolveSpecId(input) {
-    if (input.spec_id) return input.spec_id;
+    if (input.spec_id) {
+      return this.resolveIdentifier(input.spec_id);
+    }
     if (input.source_type && input.source_key) {
       const spec = await this.specRepository.findBySourceKey(input.source_type, input.source_key);
       if (!spec) {
@@ -550,6 +609,23 @@ class GetFeatureOverviewUseCase {
       return spec.id;
     }
     throw new Error("Either spec_id or (source_type + source_key) must be provided");
+  }
+  async resolveIdentifier(identifier) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(identifier)) {
+      return identifier;
+    }
+    const colonIdx = identifier.indexOf(":");
+    if (colonIdx > 0) {
+      const source_type = identifier.slice(0, colonIdx);
+      const source_key = identifier.slice(colonIdx + 1);
+      const spec = await this.specRepository.findBySourceKey(source_type, source_key);
+      if (!spec) {
+        throw new Error(`Spec not found for ${source_type}/${source_key}`);
+      }
+      return spec.id;
+    }
+    throw new Error(`Invalid spec_id format: "${identifier}". Use UUID or "SOURCE_TYPE:SOURCE_KEY" (e.g. "JIRA:SHELL-1010")`);
   }
   extractHeadings(markdown) {
     const headingRegex = /^(##|###) (.+)$/gm;
@@ -589,7 +665,9 @@ class SearchSpecContextUseCase {
     return result;
   }
   async resolveSpecId(input) {
-    if (input.spec_id) return input.spec_id;
+    if (input.spec_id) {
+      return this.resolveIdentifier(input.spec_id);
+    }
     if (input.source_type && input.source_key) {
       const spec = await this.specRepository.findBySourceKey(input.source_type, input.source_key);
       if (!spec) {
@@ -598,6 +676,277 @@ class SearchSpecContextUseCase {
       return spec.id;
     }
     throw new Error("Either spec_id or (source_type + source_key) must be provided");
+  }
+  async resolveIdentifier(identifier) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(identifier)) {
+      return identifier;
+    }
+    const colonIdx = identifier.indexOf(":");
+    if (colonIdx > 0) {
+      const source_type = identifier.slice(0, colonIdx);
+      const source_key = identifier.slice(colonIdx + 1);
+      const spec = await this.specRepository.findBySourceKey(source_type, source_key);
+      if (!spec) {
+        throw new Error(`Spec not found for ${source_type}/${source_key}`);
+      }
+      return spec.id;
+    }
+    throw new Error(`Invalid spec_id format: "${identifier}". Use UUID or "SOURCE_TYPE:SOURCE_KEY" (e.g. "JIRA:SHELL-1010")`);
+  }
+}
+
+"use strict";
+class GetRepoTasksUseCase {
+  specRepository;
+  taskRepository;
+  constructor(deps) {
+    this.specRepository = deps.specRepository;
+    this.taskRepository = deps.taskRepository;
+  }
+  async execute(input) {
+    const specId = await this.resolveSpecId(input);
+    const allTasks = input.repo ? await this.taskRepository.findBySpecAndRepo(specId, input.repo) : await this.taskRepository.findBySpecId(specId);
+    const activeTasks = allTasks.filter((t) => t.status !== "done");
+    const grouped = /* @__PURE__ */ new Map();
+    for (const task of activeTasks) {
+      const list = grouped.get(task.repo) || [];
+      list.push(task);
+      grouped.set(task.repo, list);
+    }
+    const repos = Array.from(grouped.entries()).map(([repo, tasks]) => ({
+      repo,
+      tasks: tasks.map((t) => ({
+        id: t.id,
+        status: t.status,
+        intent: t.intent,
+        title: t.title,
+        context_snippet: t.context_snippet
+      }))
+    }));
+    return { spec_id: specId, repos };
+  }
+  async resolveSpecId(input) {
+    if (input.spec_id) {
+      return this.resolveIdentifier(input.spec_id);
+    }
+    if (input.source_type && input.source_key) {
+      const spec = await this.specRepository.findBySourceKey(input.source_type, input.source_key);
+      if (!spec) {
+        throw new Error(`Spec not found for ${input.source_type}/${input.source_key}`);
+      }
+      return spec.id;
+    }
+    throw new Error("Either spec_id or (source_type + source_key) must be provided");
+  }
+  async resolveIdentifier(identifier) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(identifier)) {
+      return identifier;
+    }
+    const colonIdx = identifier.indexOf(":");
+    if (colonIdx > 0) {
+      const source_type = identifier.slice(0, colonIdx);
+      const source_key = identifier.slice(colonIdx + 1);
+      const spec = await this.specRepository.findBySourceKey(source_type, source_key);
+      if (!spec) {
+        throw new Error(`Spec not found for ${source_type}/${source_key}`);
+      }
+      return spec.id;
+    }
+    throw new Error(`Invalid spec_id format: "${identifier}". Use UUID or "SOURCE_TYPE:SOURCE_KEY" (e.g. "JIRA:SHELL-1010")`);
+  }
+}
+
+"use strict";
+class UpdateTaskStatusUseCase {
+  specRepository;
+  taskRepository;
+  changelogRepository;
+  constructor(deps) {
+    this.specRepository = deps.specRepository;
+    this.taskRepository = deps.taskRepository;
+    this.changelogRepository = deps.changelogRepository;
+  }
+  async execute(input) {
+    if (input.task_id) {
+      return this.updateExistingTask(input);
+    }
+    return this.createNewTask(input);
+  }
+  async updateExistingTask(input) {
+    const task = await this.taskRepository.findById(input.task_id);
+    if (!task) {
+      throw new Error(`Task not found: ${input.task_id}`);
+    }
+    const oldStatus = task.status;
+    const updated = await this.taskRepository.updateStatus(input.task_id, input.status, input.updated_by);
+    if (!updated) {
+      throw new Error(`Failed to update task: ${input.task_id}`);
+    }
+    await this.changelogRepository.insert({
+      spec_id: updated.spec_id,
+      task_id: updated.id,
+      field: "status",
+      old_value: oldStatus,
+      new_value: input.status,
+      changed_by: input.updated_by
+    });
+    return { task_id: updated.id, status: updated.status };
+  }
+  async createNewTask(input) {
+    if (!input.intent || !input.title || !input.context_snippet) {
+      throw new Error("intent, title, and context_snippet are required when creating a new task");
+    }
+    if (!input.spec_id && !(input.source_type && input.source_key)) {
+      throw new Error("Either spec_id or (source_type + source_key) must be provided when creating a new task");
+    }
+    const specId = await this.resolveSpecId(input);
+    const created = await this.taskRepository.create({
+      spec_id: specId,
+      status: input.status,
+      repo: input.repo,
+      intent: input.intent,
+      title: input.title,
+      context_snippet: input.context_snippet,
+      updated_by: input.updated_by
+    });
+    await this.changelogRepository.insert({
+      spec_id: specId,
+      task_id: created.id,
+      field: "task_created",
+      old_value: null,
+      new_value: `intent=${input.intent} title=${input.title}`,
+      changed_by: input.updated_by
+    });
+    return { task_id: created.id, status: created.status };
+  }
+  async resolveSpecId(input) {
+    if (input.spec_id) {
+      return this.resolveIdentifier(input.spec_id);
+    }
+    if (input.source_type && input.source_key) {
+      const spec = await this.specRepository.findBySourceKey(input.source_type, input.source_key);
+      if (!spec) {
+        throw new Error(`Spec not found for ${input.source_type}/${input.source_key}`);
+      }
+      return spec.id;
+    }
+    throw new Error("Either spec_id or (source_type + source_key) must be provided");
+  }
+  async resolveIdentifier(identifier) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(identifier)) {
+      return identifier;
+    }
+    const colonIdx = identifier.indexOf(":");
+    if (colonIdx > 0) {
+      const source_type = identifier.slice(0, colonIdx);
+      const source_key = identifier.slice(colonIdx + 1);
+      const spec = await this.specRepository.findBySourceKey(source_type, source_key);
+      if (!spec) {
+        throw new Error(`Spec not found for ${source_type}/${source_key}`);
+      }
+      return spec.id;
+    }
+    throw new Error(`Invalid spec_id format: "${identifier}". Use UUID or "SOURCE_TYPE:SOURCE_KEY" (e.g. "JIRA:SHELL-1010")`);
+  }
+}
+
+"use strict";
+class UpdateSpecChunkUseCase {
+  specRepository;
+  changelogRepository;
+  embeddingService;
+  constructor(deps) {
+    this.specRepository = deps.specRepository;
+    this.changelogRepository = deps.changelogRepository;
+    this.embeddingService = deps.embeddingService;
+  }
+  async execute(input) {
+    const specId = await this.resolveSpecId(input);
+    const spec = await this.specRepository.findById(specId);
+    if (!spec) {
+      throw new Error(`Spec not found: ${specId}`);
+    }
+    const { section, updatedContent, found } = this.replaceSectionByHeading(
+      spec.content,
+      input.section_heading,
+      input.new_content
+    );
+    if (!found) {
+      return { spec_id: specId, section: input.section_heading, status: "not_found" };
+    }
+    const embedding = await this.embeddingService.generateEmbedding(updatedContent);
+    await this.specRepository.updateContent(specId, updatedContent, embedding, input.updated_by);
+    await this.changelogRepository.insert({
+      spec_id: specId,
+      task_id: null,
+      field: `section:${input.section_heading}`,
+      old_value: section,
+      new_value: input.new_content,
+      changed_by: input.updated_by
+    });
+    return { spec_id: specId, section: input.section_heading, status: "updated" };
+  }
+  replaceSectionByHeading(content, heading, newContent) {
+    const headingPattern = `^#{2,3}\\s+${this.escapeRegex(heading)}\\s*$`;
+    const headingRegex = new RegExp(headingPattern, "im");
+    const match = content.match(headingRegex);
+    if (!match || match.index === void 0) {
+      return { section: "", updatedContent: content, found: false };
+    }
+    const headingLine = match[0];
+    const headingEnd = match.index + headingLine.length;
+    const remaining = content.slice(headingEnd);
+    const nextHeadingRegex = /\n(?=#{2,3}\s)/;
+    const nextHeadingMatch = remaining.match(nextHeadingRegex);
+    const sectionEnd = nextHeadingMatch ? headingEnd + nextHeadingMatch.index : content.length;
+    const oldSection = content.slice(match.index, sectionEnd).trim();
+    const marker = `__SECTION_MARKER_${Date.now()}__`;
+    const before = content.slice(0, match.index);
+    const after = content.slice(sectionEnd);
+    const updatedContent = before + marker + after;
+    const finalContent = updatedContent.replace(
+      marker,
+      `${headingLine}
+
+${newContent.trim()}`
+    );
+    return { section: oldSection, updatedContent: finalContent, found: true };
+  }
+  escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+  async resolveSpecId(input) {
+    if (input.spec_id) {
+      return this.resolveIdentifier(input.spec_id);
+    }
+    if (input.source_type && input.source_key) {
+      const spec = await this.specRepository.findBySourceKey(input.source_type, input.source_key);
+      if (!spec) {
+        throw new Error(`Spec not found for ${input.source_type}/${input.source_key}`);
+      }
+      return spec.id;
+    }
+    throw new Error("Either spec_id or (source_type + source_key) must be provided");
+  }
+  async resolveIdentifier(identifier) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(identifier)) {
+      return identifier;
+    }
+    const colonIdx = identifier.indexOf(":");
+    if (colonIdx > 0) {
+      const source_type = identifier.slice(0, colonIdx);
+      const source_key = identifier.slice(colonIdx + 1);
+      const spec = await this.specRepository.findBySourceKey(source_type, source_key);
+      if (!spec) {
+        throw new Error(`Spec not found for ${source_type}/${source_key}`);
+      }
+      return spec.id;
+    }
+    throw new Error(`Invalid spec_id format: "${identifier}". Use UUID or "SOURCE_TYPE:SOURCE_KEY" (e.g. "JIRA:SHELL-1010")`);
   }
 }
 
@@ -611,7 +960,10 @@ function buildContainer() {
     changelogRepository: asClass(SequelizeChangelogRepository).singleton(),
     saveSpecUseCase: asClass(SaveSpecUseCase).singleton(),
     getFeatureOverviewUseCase: asClass(GetFeatureOverviewUseCase).singleton(),
-    searchSpecContextUseCase: asClass(SearchSpecContextUseCase).singleton()
+    searchSpecContextUseCase: asClass(SearchSpecContextUseCase).singleton(),
+    getRepoTasksUseCase: asClass(GetRepoTasksUseCase).singleton(),
+    updateTaskStatusUseCase: asClass(UpdateTaskStatusUseCase).singleton(),
+    updateSpecChunkUseCase: asClass(UpdateSpecChunkUseCase).singleton()
   });
   return container;
 }
@@ -620,12 +972,12 @@ function buildContainer() {
 function createSaveSpecTool(container) {
   return createTool({
     id: "save_spec",
-    description: "Save a technical spec with vector embedding. Creates or updates (UPSERT) a spec by source_type + source_key. If the spec already exists, content is updated and the embedding is regenerated. The operation is atomic \u2014 if embedding fails, the spec is not saved.",
+    description: "Save a technical document with vector embedding. The unique key is the pair (source_type, source_key). Different source_type values for the same source_key create separate documents \u2014 use this to store multiple artifacts for one card. For example, to save all artifacts for card SHELL-1234: save with source_type=prd + source_key=SHELL-1234, then save again with source_type=spec + source_key=SHELL-1234, then again with source_type=design + source_key=SHELL-1234. Each will be a distinct document, searchable independently. If you save again with the same source_type+source_key pair, the existing document is updated (UPSERT) and its embedding regenerated.",
     inputSchema: z.object({
-      source_type: z.string().max(32).describe("External tracking tool type (e.g. 'JIRA', 'LINEAR', 'GITHUB')"),
-      source_key: z.string().max(128).describe("External tracking key/ID (e.g. 'PROJ-123')"),
-      title: z.string().describe("Spec title"),
-      content: z.string().describe("Markdown content of the spec"),
+      source_type: z.string().max(32).describe("Document type. Use 'prd' for product requirements, 'spec' for technical specification, 'design' for architecture/design docs, or your own convention like 'jira', 'linear', 'github', 'adr', 'runbook'. Multiple documents with different source_type can share the same source_key."),
+      source_key: z.string().max(128).describe("External tracking key/ID (e.g. 'SHELL-1234', 'PROJ-456'). The same source_key can be used across multiple source_type values to group related documents for the same card."),
+      title: z.string().describe("Document title"),
+      content: z.string().describe("Markdown content of the document"),
       updated_by: z.string().describe("Identifier of who/what is making the change (e.g. 'claude-code', 'cezar@corp')")
     }),
     outputSchema: z.object({
@@ -644,11 +996,11 @@ function createSaveSpecTool(container) {
 function createGetFeatureOverviewTool(container) {
   return createTool({
     id: "get_feature_overview",
-    description: "Returns spec metadata and an index of headings (## and ###) extracted from the Markdown content. Identify the spec by its UUID or by source_type + source_key (e.g. JIRA + SHELL-1010).",
+    description: "Returns document metadata and an index of headings (## and ###) extracted from the Markdown content. Identify by UUID or by source_type + source_key (e.g. spec + SHELL-1234). Since multiple documents can share the same source_key with different source_type, always include the specific source_type.",
     inputSchema: z.object({
-      spec_id: z.string().optional().describe("UUID of the spec to retrieve the overview for"),
-      source_type: z.string().optional().describe("External tracking tool type (e.g. 'JIRA', 'LINEAR', 'GITHUB')"),
-      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1010')")
+      spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234")'),
+      source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design'). Required to disambiguate when multiple documents share the same source_key."),
+      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1234')")
     }).refine(
       (data) => data.spec_id || data.source_type && data.source_key,
       { message: "Either spec_id or (source_type + source_key) must be provided" }
@@ -677,11 +1029,11 @@ function createGetFeatureOverviewTool(container) {
 function createSearchSpecContextTool(container) {
   return createTool({
     id: "search_spec_context",
-    description: "Search for relevant context within a spec using natural language. Combines vector similarity and full-text search to return the top-3 most relevant sections as Markdown snippets. Identify the spec by its UUID or by source_type + source_key (e.g. JIRA + SHELL-1010).",
+    description: "Search within a specific document using natural language. Combines vector similarity and full-text search to return the top-3 most relevant sections. Identify the document by UUID or by source_type + source_key (e.g. spec + SHELL-1234). Since multiple documents can share the same source_key with different source_type, always include the specific source_type to target the right document.",
     inputSchema: z.object({
-      spec_id: z.string().optional().describe("UUID of the spec to search within"),
-      source_type: z.string().optional().describe("External tracking tool type (e.g. 'JIRA', 'LINEAR', 'GITHUB')"),
-      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1010')"),
+      spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234")'),
+      source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design'). Required to disambiguate when multiple documents share the same source_key."),
+      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1234')"),
       query: z.string().describe('Natural language query (e.g. "Qual o schema do evento Kafka?")'),
       repo: z.string().optional().describe("Repository name to filter/boost tasks context snippets")
     }).refine(
@@ -705,6 +1057,96 @@ function createSearchSpecContextTool(container) {
 }
 
 "use strict";
+function createGetRepoTasksTool(container) {
+  return createTool({
+    id: "get_repo_tasks",
+    description: "Returns active tasks (status != done) for a specific repository within a document. Tasks are grouped by repo. Identify the document by UUID or by source_type + source_key (e.g. spec + SHELL-1234).",
+    inputSchema: z.object({
+      spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234")'),
+      source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design')"),
+      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1234')"),
+      repo: z.string().optional().describe('Repository name to filter tasks (e.g. "service-payments-consumer"). Omit to list all repos with active tasks.')
+    }).refine(
+      (data) => data.spec_id || data.source_type && data.source_key,
+      { message: "Either spec_id or (source_type + source_key) must be provided" }
+    ),
+    outputSchema: z.object({
+      spec_id: z.string(),
+      repos: z.array(z.object({
+        repo: z.string(),
+        tasks: z.array(z.object({
+          id: z.string(),
+          status: z.string(),
+          intent: z.string(),
+          title: z.string(),
+          context_snippet: z.string()
+        }))
+      }))
+    }),
+    execute: async (inputData) => {
+      const useCase = container.resolve("getRepoTasksUseCase");
+      return useCase.execute(inputData);
+    }
+  });
+}
+
+"use strict";
+function createUpdateTaskStatusTool(container) {
+  return createTool({
+    id: "update_task_status",
+    description: "Mark a task as done or add a new task discovered during implementation. If task_id is provided, updates the existing task status. If omitted, creates a new task (requires intent, title, and context_snippet). Both paths record a changelog entry.",
+    inputSchema: z.object({
+      task_id: z.string().optional().describe("UUID of an existing task to update. If omitted, a new task is created."),
+      spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234"). Required when creating a new task.'),
+      source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design')"),
+      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1234')"),
+      repo: z.string().describe('Repository name (e.g. "service-payments-consumer")'),
+      status: z.enum(["pending", "in_progress", "done"]).describe("Task status to set"),
+      intent: z.string().optional().describe("Normalized intent slug (required when creating a new task)"),
+      title: z.string().optional().describe("Task title (required when creating a new task)"),
+      context_snippet: z.string().optional().describe("Relevant Markdown snippet from the spec (required when creating a new task)"),
+      updated_by: z.string().describe("Identifier of who/what is making the change (e.g. 'claude-code', 'cezar@corp')")
+    }),
+    outputSchema: z.object({
+      task_id: z.string(),
+      status: z.string()
+    }),
+    execute: async (inputData) => {
+      const useCase = container.resolve("updateTaskStatusUseCase");
+      return useCase.execute(inputData);
+    }
+  });
+}
+
+"use strict";
+function createUpdateSpecChunkTool(container) {
+  return createTool({
+    id: "update_spec_chunk",
+    description: "Edit a specific section of a document by its heading. Finds the section by Markdown heading (## or ###), replaces its content, regenerates the embedding, and records a changelog entry. Last-write-wins. Identify the document by UUID or by source_type + source_key (e.g. spec + SHELL-1234).",
+    inputSchema: z.object({
+      spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234")'),
+      source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design')"),
+      source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1234')"),
+      section_heading: z.string().describe('The heading text of the section to replace (without ## markers, e.g. "Kafka Contract")'),
+      new_content: z.string().describe("New Markdown content to replace the section with (excluding the heading line)"),
+      updated_by: z.string().describe("Identifier of who/what is making the change (e.g. 'claude-code', 'cezar@corp')")
+    }).refine(
+      (data) => data.spec_id || data.source_type && data.source_key,
+      { message: "Either spec_id or (source_type + source_key) must be provided" }
+    ),
+    outputSchema: z.object({
+      spec_id: z.string(),
+      section: z.string(),
+      status: z.enum(["updated", "not_found"])
+    }),
+    execute: async (inputData) => {
+      const useCase = container.resolve("updateSpecChunkUseCase");
+      return useCase.execute(inputData);
+    }
+  });
+}
+
+"use strict";
 function createSpecHubMcpServer(container) {
   return new MCPServer({
     id: "spechub",
@@ -714,7 +1156,10 @@ function createSpecHubMcpServer(container) {
     tools: {
       save_spec: createSaveSpecTool(container),
       get_feature_overview: createGetFeatureOverviewTool(container),
-      search_spec_context: createSearchSpecContextTool(container)
+      search_spec_context: createSearchSpecContextTool(container),
+      get_repo_tasks: createGetRepoTasksTool(container),
+      update_task_status: createUpdateTaskStatusTool(container),
+      update_spec_chunk: createUpdateSpecChunkTool(container)
     }
   });
 }
