@@ -4,6 +4,8 @@
 
 Em vez de copiar documentação para prompts ou depender de Confluence, Jira e READMEs espalhados, os agentes recuperam apenas o contexto necessário, atualizam especificações durante a implementação e compartilham conhecimento entre múltiplos repositórios — tudo direto do IDE, sem sair do fluxo.
 
+O SpecHub armazena todos os artefatos do ciclo de vida de uma feature: **PRD → Spec Técnica → Design → Tarefas**. O PRD é o ponto de partida; a partir dele, skills como `grill-me`, `grill-with-docs` ou `cy-create-techspec` geram a spec técnica e o design, que também são persistidos. As tarefas nascem da spec e são rastreadas por repositório até a conclusão.
+
 ```mermaid
 flowchart LR
     subgraph Agentes
@@ -32,53 +34,68 @@ flowchart LR
 
 ## Como funciona na prática
 
+O SpecHub armazena todos os artefatos do ciclo de vida de uma feature — do PRD inicial até a doc atualizada durante a implementação. O fluxo típico:
+
 ```
 Nova feature (ex: "Adicionar pagamento PIX")
     │
     ▼
-┌─────────────────────────────────────┐
-│ 1. Salvar PRD                       │  save_spec
-│    "PIX: integração com PSP..."    │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ 1. Salvar PRD                           │  save_spec
+│    Documento de requisitos do produto.   │
+│    É o ponto de partida.                │
+└─────────────────────────────────────────┘
     │
     ▼
-┌─────────────────────────────────────┐
-│ 2. Gerar tarefas por repo           │  update_task_status
-│    api: criar endpoint cobrança     │
-│    worker: processar webhook        │
-│    frontend: tela de pagamento      │
-│    terraform: novas env vars        │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ 2. Gerar Spec Técnica e Design          │  grill-me / grill-with-docs
+│    A partir do PRD, usando AI-assisted   │  tdd / cy-create-techspec
+│    skills para refinar e produzir:       │
+│    • Documento de especificação técnica   │  save_spec
+│    • Documento de design/arquitetura     │  save_spec
+│    Cada artefato é salvo no SpecHub.     │
+└─────────────────────────────────────────┘
     │
     ▼
-┌─────────────────────────────────────┐
-│ 3. Agente busca contexto relevante  │  search_spec_context
-│    "Como funciona o webhook?"       │  → só a seção sobre webhook
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ 3. Gerar tarefas por repo               │  update_task_status
+│    A partir da spec, decompor em tarefas │
+│    rastreáveis:                          │
+│    api: criar endpoint cobrança          │
+│    worker: processar webhook            │
+│    frontend: tela de pagamento          │
+│    terraform: novas env vars            │
+└─────────────────────────────────────────┘
     │
     ▼
-┌─────────────────────────────────────┐
-│ 4. Implementa e atualiza progresso  │  update_task_status
-│    api: cobrança PIX → done         │
-│    worker: webhook → in_progress    │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ 4. Agente busca contexto relevante      │  search_spec_context
+│    "Como funciona o webhook?"           │  → só a seção sobre webhook
+└─────────────────────────────────────────┘
     │
     ▼
-┌─────────────────────────────────────┐
-│ 5. Atualiza documentação            │  update_spec_chunk
-│    "Durante implementação, o PSP    │
-│     exige header X-IDEMPOTENCY..."  │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ 5. Implementa e atualiza progresso      │  update_task_status
+│    api: cobrança PIX → done             │
+│    worker: webhook → in_progress        │
+└─────────────────────────────────────────┘
     │
     ▼
-┌─────────────────────────────────────┐
-│ 6. Próximo agente continua          │  get_repo_tasks
-│    "Quais tarefas faltam?"          │  → worker: webhook (in_progress)
-│    "O que mudou desde o planning?"  │  → frontend, terraform (pending)
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ 6. Atualiza documentação                │  update_spec_chunk
+│    "Durante implementação, o PSP        │
+│     exige header X-IDEMPOTENCY..."      │
+└─────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────┐
+│ 7. Próximo agente continua              │  get_repo_tasks
+│    "Quais tarefas faltam?"              │  → worker: webhook (in_progress)
+│    "O que mudou desde o planning?"      │  → frontend, terraform (pending)
+└─────────────────────────────────────────┘
 ```
 
-O conhecimento acumulado pelo primeiro agente fica imediatamente disponível para os próximos.
+O SpecHub centraliza PRD, spec técnica, design e tarefas — tudo versionado, buscável e conectado. O conhecimento acumulado por um agente fica imediatamente disponível para os próximos.
 
 ---
 
@@ -127,8 +144,8 @@ Toda operação de escrita registra entrada no changelog.
 
 ## Casos de uso
 
-- **Desenvolvimento cross-repo** — uma feature tocando API, worker, frontend e infra, com tarefas rastreáveis por repositório.
-- **PRDs e RFCs** — armazenamento centralizado com busca semântica. O agente encontra o trecho exato que precisa, sem ler 30 páginas.
+- **Desenvolvimento cross-repo** — PRD → Spec Técnica → Design → Tarefas. Feature tocando API, worker, frontend e infra, com tarefas rastreáveis por repositório.
+- **PRDs e RFCs** — armazenamento centralizado com busca semântica. O agente encontra o trecho exato que precisa, sem ler 30 páginas. Use `grill-me` ou `cy-create-techspec` para refinar o PRD em spec técnica.
 - **ADRs (Architecture Decision Records)** — documentação de decisões de arquitetura indexada e buscável.
 - **Runbooks e playbooks** — procedimentos operacionais que evoluem com o tempo.
 - **Migrações grandes** — documentação viva do que foi migrado, o que falta e decisões tomadas no caminho.
