@@ -122,6 +122,7 @@ O SpecHub centraliza PRD, spec técnica, design e tarefas — tudo versionado, b
 
 | Ferramenta | O que faz |
 |---|---|
+| `list_card_documents` | Lista todos os documentos de um card (PRD, spec, design, etc.) a partir do `source_key`. Use para descobrir o que já existe antes de buscar. |
 | `search_spec_context` | Busca semântica dentro de uma spec. Top-3 seções mais relevantes para a query. |
 | `get_feature_overview` | Retorna metadados + estrutura de headings da spec. Ideal para o agente se localizar antes de buscar. |
 
@@ -129,8 +130,8 @@ O SpecHub centraliza PRD, spec técnica, design e tarefas — tudo versionado, b
 
 | Ferramenta | O que faz |
 |---|---|
-| `get_repo_tasks` | Lista tarefas ativas de uma spec, agrupadas por repositório. |
-| `update_task_status` | Atualiza status (`pending` → `in_progress` → `done`) ou cria nova tarefa descoberta durante implementação. |
+| `get_repo_tasks` | Lista tarefas ativas vinculadas à spec, agrupadas por repositório. Use o `spec_id` do documento spec (não do tasks). |
+| `update_task_status` | Atualiza status (`pending` → `in_progress` → `done`) ou cria nova tarefa vinculada à spec. |
 
 ### Manter documentação viva
 
@@ -221,7 +222,7 @@ Adicione ao config do seu cliente MCP (Cursor, Claude Code, Windsurf, etc.):
 │  src/mastra/  — HTTP SSE endpoint em :3456     │
 ├────────────────────────────────────────────────┤
 │           Application (Use Cases)               │
-│  src/application/use-cases/  — 6 casos de uso  │
+│  src/application/use-cases/  — 7 casos de uso  │
 ├────────────────────────────────────────────────┤
 │              Domain (Interfaces)                │
 │  src/domain/  — entidades, repositórios,       │

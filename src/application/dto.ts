@@ -84,3 +84,12 @@ export interface UpdateSpecChunkOutput {
   section: string
   status: 'updated' | 'not_found'
 }
+
+export interface ListCardDocumentsInput {
+  source_key: string
+}
+
+export interface ListCardDocumentsOutput {
+  source_key: string
+  documents: { spec_id: string; source_type: string; title: string; updated_at: string }[]
+}

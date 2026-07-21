@@ -6,6 +6,7 @@ export type {
   SearchMatch,
   SearchContextResult,
   CreateTaskParams,
+  ListBySourceKeyResult,
   ISpecRepository,
   ITaskRepository,
   IChangelogRepository,

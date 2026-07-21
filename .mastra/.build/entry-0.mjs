@@ -353,6 +353,20 @@ class SequelizeSpecRepository {
       updated_by: row.updated_by
     };
   }
+  async listBySourceKey(sourceKey) {
+    const rows = await SpecModel.findAll({
+      where: { source_key: sourceKey },
+      attributes: ["id", "source_type", "source_key", "title", "updated_at"],
+      raw: true
+    });
+    return rows.map((r) => ({
+      spec_id: r.id,
+      source_type: r.source_type,
+      source_key: r.source_key,
+      title: r.title,
+      updated_at: r.updated_at
+    }));
+  }
   async searchContext(params) {
     const row = await SpecModel.findByPk(params.specId, { raw: true });
     if (!row) {
@@ -951,6 +965,26 @@ ${newContent.trim()}`
 }
 
 "use strict";
+class ListCardDocumentsUseCase {
+  specRepository;
+  constructor(deps) {
+    this.specRepository = deps.specRepository;
+  }
+  async execute(input) {
+    const results = await this.specRepository.listBySourceKey(input.source_key);
+    return {
+      source_key: input.source_key,
+      documents: results.map((r) => ({
+        spec_id: r.spec_id,
+        source_type: r.source_type,
+        title: r.title,
+        updated_at: r.updated_at.toISOString()
+      }))
+    };
+  }
+}
+
+"use strict";
 function buildContainer() {
   const container = createContainer();
   container.register({
@@ -963,7 +997,8 @@ function buildContainer() {
     searchSpecContextUseCase: asClass(SearchSpecContextUseCase).singleton(),
     getRepoTasksUseCase: asClass(GetRepoTasksUseCase).singleton(),
     updateTaskStatusUseCase: asClass(UpdateTaskStatusUseCase).singleton(),
-    updateSpecChunkUseCase: asClass(UpdateSpecChunkUseCase).singleton()
+    updateSpecChunkUseCase: asClass(UpdateSpecChunkUseCase).singleton(),
+    listCardDocumentsUseCase: asClass(ListCardDocumentsUseCase).singleton()
   });
   return container;
 }
@@ -1060,12 +1095,12 @@ function createSearchSpecContextTool(container) {
 function createGetRepoTasksTool(container) {
   return createTool({
     id: "get_repo_tasks",
-    description: "Returns active tasks (status != done) for a specific repository within a document. Tasks are grouped by repo. Identify the document by UUID or by source_type + source_key (e.g. spec + SHELL-1234).",
+    description: "Returns active tasks (status != done) linked to a spec document. Tasks live in a separate table and are linked to the spec document \u2014 always pass the spec_id of the spec document, NOT the tasks document. To find the correct spec_id: use list_card_documents(shell) to see all documents, then use the spec_id from the document with source_type=spec. If no repo is specified, tasks from all repos are returned grouped by repo.",
     inputSchema: z.object({
-      spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234")'),
-      source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design')"),
+      spec_id: z.string().optional().describe('UUID of the spec document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234"). Tasks are linked to the spec, so pass the SPEC document id, not the tasks document id.'),
+      source_type: z.string().optional().describe("Document type to resolve \u2014 use 'spec' to get tasks linked to the technical spec"),
       source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1234')"),
-      repo: z.string().optional().describe('Repository name to filter tasks (e.g. "service-payments-consumer"). Omit to list all repos with active tasks.')
+      repo: z.string().optional().describe('Repository name to filter tasks (e.g. "api"). Omit to list all repos with active tasks.')
     }).refine(
       (data) => data.spec_id || data.source_type && data.source_key,
       { message: "Either spec_id or (source_type + source_key) must be provided" }
@@ -1094,11 +1129,11 @@ function createGetRepoTasksTool(container) {
 function createUpdateTaskStatusTool(container) {
   return createTool({
     id: "update_task_status",
-    description: "Mark a task as done or add a new task discovered during implementation. If task_id is provided, updates the existing task status. If omitted, creates a new task (requires intent, title, and context_snippet). Both paths record a changelog entry.",
+    description: "Mark a task as done or create a new task linked to a spec document. If task_id is provided, updates the existing task. If omitted, creates a new task (requires intent, title, context_snippet). Tasks are linked to the spec document \u2014 always use the spec_id of the document with source_type=spec. Both paths record a changelog entry.",
     inputSchema: z.object({
       task_id: z.string().optional().describe("UUID of an existing task to update. If omitted, a new task is created."),
-      spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234"). Required when creating a new task.'),
-      source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design')"),
+      spec_id: z.string().optional().describe('UUID of the spec document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234"). Tasks are linked to the spec. Required when creating a new task.'),
+      source_type: z.string().optional().describe("Document type to resolve \u2014 use 'spec' to link tasks to the technical spec"),
       source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1234')"),
       repo: z.string().describe('Repository name (e.g. "service-payments-consumer")'),
       status: z.enum(["pending", "in_progress", "done"]).describe("Task status to set"),
@@ -1147,6 +1182,30 @@ function createUpdateSpecChunkTool(container) {
 }
 
 "use strict";
+function createListCardDocumentsTool(container) {
+  return createTool({
+    id: "list_card_documents",
+    description: 'List all documents stored for a given card/key. Given a source_key (e.g. "SHELL-1234"), returns every document regardless of source_type \u2014 PRD, spec, design, ADR, etc. Use this to discover what artifacts exist before searching or editing a specific one.',
+    inputSchema: z.object({
+      source_key: z.string().describe("The card/key to look up (e.g. 'SHELL-1234')")
+    }),
+    outputSchema: z.object({
+      source_key: z.string(),
+      documents: z.array(z.object({
+        spec_id: z.string(),
+        source_type: z.string(),
+        title: z.string(),
+        updated_at: z.string()
+      }))
+    }),
+    execute: async (inputData) => {
+      const useCase = container.resolve("listCardDocumentsUseCase");
+      return useCase.execute(inputData);
+    }
+  });
+}
+
+"use strict";
 function createSpecHubMcpServer(container) {
   return new MCPServer({
     id: "spechub",
@@ -1159,7 +1218,8 @@ function createSpecHubMcpServer(container) {
       search_spec_context: createSearchSpecContextTool(container),
       get_repo_tasks: createGetRepoTasksTool(container),
       update_task_status: createUpdateTaskStatusTool(container),
-      update_spec_chunk: createUpdateSpecChunkTool(container)
+      update_spec_chunk: createUpdateSpecChunkTool(container),
+      list_card_documents: createListCardDocumentsTool(container)
     }
   });
 }

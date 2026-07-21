@@ -5,6 +5,7 @@ import { createSearchSpecContextTool } from './tools/search-spec-context.js'
 import { createGetRepoTasksTool } from './tools/get-repo-tasks.js'
 import { createUpdateTaskStatusTool } from './tools/update-task-status.js'
 import { createUpdateSpecChunkTool } from './tools/update-spec-chunk.js'
+import { createListCardDocumentsTool } from './tools/list-card-documents.js'
 import type { AppContainer } from '../container/types.js'
 
 export function createSpecHubMcpServer(container: AppContainer) {
@@ -20,6 +21,7 @@ export function createSpecHubMcpServer(container: AppContainer) {
       get_repo_tasks: createGetRepoTasksTool(container),
       update_task_status: createUpdateTaskStatusTool(container),
       update_spec_chunk: createUpdateSpecChunkTool(container),
+      list_card_documents: createListCardDocumentsTool(container),
     },
   })
 }

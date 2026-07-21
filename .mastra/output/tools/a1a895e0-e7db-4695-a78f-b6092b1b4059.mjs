@@ -4,11 +4,11 @@ import { z } from 'zod';
 function createUpdateTaskStatusTool(container) {
   return createTool({
     id: "update_task_status",
-    description: "Mark a task as done or add a new task discovered during implementation. If task_id is provided, updates the existing task status. If omitted, creates a new task (requires intent, title, and context_snippet). Both paths record a changelog entry.",
+    description: "Mark a task as done or create a new task linked to a spec document. If task_id is provided, updates the existing task. If omitted, creates a new task (requires intent, title, context_snippet). Tasks are linked to the spec document \u2014 always use the spec_id of the document with source_type=spec. Both paths record a changelog entry.",
     inputSchema: z.object({
       task_id: z.string().optional().describe("UUID of an existing task to update. If omitted, a new task is created."),
-      spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234"). Required when creating a new task.'),
-      source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design')"),
+      spec_id: z.string().optional().describe('UUID of the spec document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234"). Tasks are linked to the spec. Required when creating a new task.'),
+      source_type: z.string().optional().describe("Document type to resolve \u2014 use 'spec' to link tasks to the technical spec"),
       source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1234')"),
       repo: z.string().describe('Repository name (e.g. "service-payments-consumer")'),
       status: z.enum(["pending", "in_progress", "done"]).describe("Task status to set"),

@@ -35,10 +35,19 @@ export interface SearchContextResult {
   matches: SearchMatch[]
 }
 
+export interface ListBySourceKeyResult {
+  spec_id: string
+  source_type: string
+  source_key: string
+  title: string
+  updated_at: Date
+}
+
 export interface ISpecRepository {
   upsert(params: UpsertSpecParams): Promise<UpsertSpecResult>
   findById(id: string): Promise<Spec | null>
   findBySourceKey(sourceType: string, sourceKey: string): Promise<Spec | null>
+  listBySourceKey(sourceKey: string): Promise<ListBySourceKeyResult[]>
   searchContext(params: SearchContextParams): Promise<SearchContextResult>
   updateContent(specId: string, content: string, embedding: number[], updatedBy: string): Promise<Spec | null>
 }

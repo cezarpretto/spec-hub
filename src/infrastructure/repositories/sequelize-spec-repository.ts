@@ -1,4 +1,4 @@
-import type { ISpecRepository, UpsertSpecParams, UpsertSpecResult, SearchContextParams, SearchContextResult, Spec } from '../../domain/index.js'
+import type { ISpecRepository, UpsertSpecParams, UpsertSpecResult, SearchContextParams, SearchContextResult, Spec, ListBySourceKeyResult } from '../../domain/index.js'
 import { SpecModel, TaskModel } from '../database/models/index.js'
 
 type SpecRow = {
@@ -77,6 +77,22 @@ export class SequelizeSpecRepository implements ISpecRepository {
       updated_at: row.updated_at,
       updated_by: row.updated_by,
     }
+  }
+
+  async listBySourceKey(sourceKey: string): Promise<ListBySourceKeyResult[]> {
+    const rows = await SpecModel.findAll({
+      where: { source_key: sourceKey },
+      attributes: ['id', 'source_type', 'source_key', 'title', 'updated_at'],
+      raw: true,
+    }) as unknown as { id: string; source_type: string; source_key: string; title: string; updated_at: Date }[]
+
+    return rows.map(r => ({
+      spec_id: r.id,
+      source_type: r.source_type,
+      source_key: r.source_key,
+      title: r.title,
+      updated_at: r.updated_at,
+    }))
   }
 
   async searchContext(params: SearchContextParams): Promise<SearchContextResult> {

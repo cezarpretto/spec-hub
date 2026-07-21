@@ -5,12 +5,13 @@ import { Sequelize, DataTypes } from 'sequelize';
 import { createContainer, asClass } from 'awilix';
 import { pipeline } from '@xenova/transformers';
 import { MCPServer } from '@mastra/mcp';
-import { createSaveSpecTool } from './tools/e0368a89-2346-490c-bef6-027b8ef001d9.mjs';
-import { createGetFeatureOverviewTool } from './tools/7cd92ed2-77c5-4d36-8716-241ce5e0206c.mjs';
-import { createSearchSpecContextTool } from './tools/2a9a9daa-3633-4ee1-9beb-5b6f394c7751.mjs';
-import { createGetRepoTasksTool } from './tools/c95429f1-63f4-4b2f-8728-7151c4d0b84c.mjs';
-import { createUpdateTaskStatusTool } from './tools/bd83f55b-a3f9-4e97-9049-4fe4d259b997.mjs';
-import { createUpdateSpecChunkTool } from './tools/76288dd8-4b51-4b71-90d2-fb0518e183c4.mjs';
+import { createSaveSpecTool } from './tools/24ad313a-f372-4d44-a470-9ada291e5a61.mjs';
+import { createGetFeatureOverviewTool } from './tools/52f164e5-7fd3-47f6-90f7-115b0a66048e.mjs';
+import { createSearchSpecContextTool } from './tools/64317e2c-06fb-42c2-ab05-a1b9d0357a6b.mjs';
+import { createGetRepoTasksTool } from './tools/13ab8371-8064-436e-b577-4653bd2b5647.mjs';
+import { createUpdateTaskStatusTool } from './tools/a1a895e0-e7db-4695-a78f-b6092b1b4059.mjs';
+import { createUpdateSpecChunkTool } from './tools/762a47fb-950d-4436-b3f4-e47e080a1ba5.mjs';
+import { createListCardDocumentsTool } from './tools/2e8dce05-7e07-4ef0-9129-720c0b20945e.mjs';
 import { readFile } from 'fs/promises';
 import * as https from 'https';
 import { request } from 'https';
@@ -387,6 +388,20 @@ class SequelizeSpecRepository {
       updated_at: row.updated_at,
       updated_by: row.updated_by
     };
+  }
+  async listBySourceKey(sourceKey) {
+    const rows = await SpecModel.findAll({
+      where: { source_key: sourceKey },
+      attributes: ["id", "source_type", "source_key", "title", "updated_at"],
+      raw: true
+    });
+    return rows.map((r) => ({
+      spec_id: r.id,
+      source_type: r.source_type,
+      source_key: r.source_key,
+      title: r.title,
+      updated_at: r.updated_at
+    }));
   }
   async searchContext(params) {
     const row = await SpecModel.findByPk(params.specId, { raw: true });
@@ -977,6 +992,25 @@ ${newContent.trim()}`
   }
 }
 
+class ListCardDocumentsUseCase {
+  specRepository;
+  constructor(deps) {
+    this.specRepository = deps.specRepository;
+  }
+  async execute(input) {
+    const results = await this.specRepository.listBySourceKey(input.source_key);
+    return {
+      source_key: input.source_key,
+      documents: results.map((r) => ({
+        spec_id: r.spec_id,
+        source_type: r.source_type,
+        title: r.title,
+        updated_at: r.updated_at.toISOString()
+      }))
+    };
+  }
+}
+
 function buildContainer() {
   const container = createContainer();
   container.register({
@@ -989,7 +1023,8 @@ function buildContainer() {
     searchSpecContextUseCase: asClass(SearchSpecContextUseCase).singleton(),
     getRepoTasksUseCase: asClass(GetRepoTasksUseCase).singleton(),
     updateTaskStatusUseCase: asClass(UpdateTaskStatusUseCase).singleton(),
-    updateSpecChunkUseCase: asClass(UpdateSpecChunkUseCase).singleton()
+    updateSpecChunkUseCase: asClass(UpdateSpecChunkUseCase).singleton(),
+    listCardDocumentsUseCase: asClass(ListCardDocumentsUseCase).singleton()
   });
   return container;
 }
@@ -1006,7 +1041,8 @@ function createSpecHubMcpServer(container) {
       search_spec_context: createSearchSpecContextTool(container),
       get_repo_tasks: createGetRepoTasksTool(container),
       update_task_status: createUpdateTaskStatusTool(container),
-      update_spec_chunk: createUpdateSpecChunkTool(container)
+      update_spec_chunk: createUpdateSpecChunkTool(container),
+      list_card_documents: createListCardDocumentsTool(container)
     }
   });
 }
