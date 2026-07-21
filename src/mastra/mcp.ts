@@ -22,9 +22,19 @@ Follow this pattern for EVERY spec-related task. Skipping steps or over-calling 
 
 1. **Discover**: \`list_card_documents(source_key)\` — always first. Learn what artifacts exist (prd, spec, design, etc.). Never assume the source_key maps to a single document.
 
-2. **Orient**: \`get_feature_overview(spec_id)\` — get the document's heading index. Use the returned section headings to understand structure and scope your next search.
+2. **Orient**: \`get_feature_overview(spec_id)\` — get the document's heading index. Use the returned section headings to **detect the document language** and scope your next search. The embedding model is English-only — headings reveal whether the document is in Portuguese or English.
 
 3. **Read**: \`search_spec_context(spec_id, query)\` — make at most 2 calls, NEVER more. One broad query first, then at most ONE follow-up scoped to a heading from step 2. This tool returns only top-3 snippets per call; a 3rd call will NOT reveal new information.
+
+### CRITICAL: Match Query Language to Document Language
+
+The embedding model (\`all-MiniLM-L6-v2\`) is **English-only**. It cannot align Portuguese queries with Portuguese documents — it treats Portuguese words as out-of-vocabulary noise and produces nearly identical (low-quality) embeddings for unrelated Portuguese sentences.
+
+**After \`get_feature_overview\`, check the headings:**
+- Headings in **Portuguese** → write your query in **Portuguese**
+- Headings in **English** → write your query in **English**
+
+If you query in English against a Portuguese document, the cosine similarity will be close to random — you WILL get irrelevant results. Always mirror the document language in your query.
 
 4. **Act**: Use \`get_repo_tasks(spec_id)\` to see pending work, then \`update_task_status\` to mark progress. Use \`update_spec_chunk\` to edit sections.
 

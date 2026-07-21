@@ -6,7 +6,7 @@ export function createGetFeatureOverviewTool(container: AppContainer) {
   return createTool({
     id: 'get_feature_overview',
     description:
-      'Returns document metadata and heading index (## and ###) extracted from Markdown. Returns ONLY structure, NOT full content. Call this AFTER list_card_documents and BEFORE search_spec_context — use the returned headings to target your search query at the right section. Identify by UUID or source_type + source_key.',
+      'Returns document metadata and heading index (## and ###) extracted from Markdown. Returns ONLY structure, NOT full content. Call this AFTER list_card_documents and BEFORE search_spec_context. IMPORTANT: use the returned headings to detect the document language (e.g. Portuguese vs English) — this determines which language to use in search_spec_context queries. Also use headings to scope your search to the right section.',
     inputSchema: z.object({
       spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234")'),
       source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design'). Required to disambiguate when multiple documents share the same source_key."),
