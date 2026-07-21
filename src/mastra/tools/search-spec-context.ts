@@ -6,12 +6,12 @@ export function createSearchSpecContextTool(container: AppContainer) {
   return createTool({
     id: 'search_spec_context',
     description:
-      'Search inside ONE document with a NATURAL LANGUAGE question. Returns top-3 relevant sections by combining vector similarity + full-text search. LIMIT: do NOT call more than twice for the same intent. Write a real question (e.g. "How does the auth blocking flow work?") not a keyword dump. Use get_feature_overview first to identify section headings, then target your query. Identify document by UUID or source_type + source_key.',
+      'Search inside ONE document with a NATURAL LANGUAGE question in ONE language. Returns top-3 relevant sections via vector + full-text search. HARD LIMIT: call at most TWICE per intent. Write a plain sentence like "How does auth blocking work?" — NEVER paste keyword lists, code slugs, or mixed-language strings. Use headings from get_feature_overview to scope your query to one section at a time.',
     inputSchema: z.object({
       spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234")'),
       source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design'). Required to disambiguate when multiple documents share the same source_key."),
       source_key: z.string().optional().describe("External tracking key/ID (e.g. 'SHELL-1234')"),
-      query: z.string().describe('Natural language query (e.g. "Qual o schema do evento Kafka?")'),
+      query: z.string().describe('A single-sentence question in ONE language (e.g. "How does the auth blocking flow work during login?"). Do NOT paste code symbols, mixed languages, or multiple questions. Each call should target ONE section heading.'),
       repo: z.string().optional().describe('Repository name to filter/boost tasks context snippets'),
     }).refine(
       data => data.spec_id || (data.source_type && data.source_key),
