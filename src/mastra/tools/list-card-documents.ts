@@ -6,7 +6,7 @@ export function createListCardDocumentsTool(container: AppContainer) {
   return createTool({
     id: 'list_card_documents',
     description:
-      'List all documents stored for a given card/key. Given a source_key (e.g. "SHELL-1234"), returns every document regardless of source_type — PRD, spec, design, ADR, etc. Use this to discover what artifacts exist before searching or editing a specific one.',
+      'ALWAYS CALL THIS FIRST. Lists all documents for a card/key regardless of source_type (prd, spec, design, ADR, etc.). Use this before any other tool to discover what artifacts exist. Never assume a source_key has only one document — multiple source_types can share the same key.',
     inputSchema: z.object({
       source_key: z.string().describe("The card/key to look up (e.g. 'SHELL-1234')"),
     }),

@@ -6,7 +6,7 @@ export function createSearchSpecContextTool(container: AppContainer) {
   return createTool({
     id: 'search_spec_context',
     description:
-      'Search within a specific document using natural language. Combines vector similarity and full-text search to return the top-3 most relevant sections. Identify the document by UUID or by source_type + source_key (e.g. spec + SHELL-1234). Since multiple documents can share the same source_key with different source_type, always include the specific source_type to target the right document.',
+      'Search inside ONE document with a NATURAL LANGUAGE question. Returns top-3 relevant sections by combining vector similarity + full-text search. LIMIT: do NOT call more than twice for the same intent. Write a real question (e.g. "How does the auth blocking flow work?") not a keyword dump. Use get_feature_overview first to identify section headings, then target your query. Identify document by UUID or source_type + source_key.',
     inputSchema: z.object({
       spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234")'),
       source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design'). Required to disambiguate when multiple documents share the same source_key."),
