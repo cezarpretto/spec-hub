@@ -1,10 +1,26 @@
 import express from 'express'
 import type { MCPServer } from '@mastra/mcp'
 
-type OAuthMiddleware = (req: import('http').IncomingMessage, res: import('http').ServerResponse, url: URL) => Promise<{ proceed: boolean; handled: boolean }>
+interface AuthMiddlewareResult {
+  proceed: boolean
+  handled: boolean
+  tokenValidation?: {
+    valid: boolean
+    claims?: Record<string, unknown>
+    subject?: string
+  }
+}
+
+type OAuthMiddleware = (req: import('http').IncomingMessage, res: import('http').ServerResponse, url: URL) => Promise<AuthMiddlewareResult>
 
 function getUrl(req: import('express').Request, port: number) {
   return new URL(req.url || '/', `http://localhost:${port}`)
+}
+
+function applyAuthClaims(req: import('express').Request, result: AuthMiddlewareResult) {
+  if (result.tokenValidation?.claims) {
+    ;(req as any).auth = result.tokenValidation.claims
+  }
 }
 
 async function handleMcp(specHubMcpServer: MCPServer, authMiddleware: OAuthMiddleware | undefined, req: import('express').Request, res: import('express').Response, httpPath: string) {
@@ -14,6 +30,7 @@ async function handleMcp(specHubMcpServer: MCPServer, authMiddleware: OAuthMiddl
   if (authMiddleware) {
     const result = await authMiddleware(req, res, url)
     if (!result.proceed) return
+    applyAuthClaims(req, result)
   }
 
   await specHubMcpServer.startHTTP({ url, httpPath, req, res })
@@ -88,6 +105,7 @@ export function createHttpServer(
     if (authMiddleware) {
       const result = await authMiddleware(req, res, url)
       if (!result.proceed) return
+      applyAuthClaims(req, result)
     }
 
     await specHubMcpServer.startSSE({
@@ -106,6 +124,7 @@ export function createHttpServer(
     if (authMiddleware) {
       const result = await authMiddleware(req, res, url)
       if (!result.proceed) return
+      applyAuthClaims(req, result)
     }
 
     await specHubMcpServer.startSSE({
