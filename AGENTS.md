@@ -1,7 +1,7 @@
 # SpecHub MCP Server
 
 Servidor MCP centralizado para armazenamento e busca de especificacoes tecnicas.
-Stack: Node.js + Mastra v1 + Sequelize + PostgreSQL/pgvector + @xenova/transformers (all-MiniLM-L6-v2).
+Stack: Node.js + Mastra v1 + Sequelize + PostgreSQL/pgvector + @xenova/transformers (paraphrase-multilingual-MiniLM-L12-v2).
 
 ## Project layout
 
@@ -149,8 +149,9 @@ node -e "import('./src/infrastructure/database/umzug.js').then(m => m.umzug.down
 
 ### Embedding
 
-- Model: `Xenova/all-MiniLM-L6-v2`, loaded via `@xenova/transformers` pipeline.
+- Model: `Xenova/paraphrase-multilingual-MiniLM-L12-v2`, loaded via `@xenova/transformers` pipeline.
 - 384-dimensional vectors, generated with `pooling: "mean", normalize: true`.
+- Supports 50+ languages including Portuguese and English.
 - `XenovaEmbeddingService.initialize()` called once at startup.
 - In tests, embedding service is NOT used — use cases are fully mocked.
 

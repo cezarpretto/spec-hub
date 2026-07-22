@@ -10,7 +10,7 @@
 - [ ] Mastra project scaffold com servidor SSE/HTTP configurado
 - [ ] Variaveis de ambiente: DATABASE_URL, PORT lidas na inicializacao
 - [ ] Auto-migrate no startup cria schema completo: tabelas `specs`, `tasks`, `changelog` com todos os indices (HNSW em specs.embedding, GIN em specs.content_tsv)
-- [ ] Modelo `Xenova/all-MiniLM-L6-v2` carregado via `@xenova/transformers` no startup, disponivel para geracao de embeddings (384 dimensoes)
+- [ ] Modelo `Xenova/paraphrase-multilingual-MiniLM-L12-v2` carregado via `@xenova/transformers` no startup, disponivel para geracao de embeddings (384 dimensoes)
 - [ ] Tool `save_spec` recebe `{ source_type, source_key, title, content, updated_by }`, gera embedding do content, faz UPSERT atomico na tabela specs e registra changelog. Se embedding falhar, spec nao e salva e erro e retornado
 - [ ] Tool `get_feature_overview` recebe `{ spec_id }`, retorna metadata da spec + indice de headings (## e ###) extraidos do content Markdown, sem o conteudo completo
 - [ ] Testes cobrem: save de nova spec, update de spec existente (UPSERT), leitura de overview com headings, falha de embedding nao persiste dados, overview de spec inexistente retorna erro

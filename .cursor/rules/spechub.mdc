@@ -9,7 +9,7 @@ description: Always applied to the SpecHub workspace. Sets Mastra v1, pg/pgvecto
 - **Runtime:** Node.js >= 22, ESM (`"type": "module"`)
 - **Framework:** Mastra v1 (`@mastra/core@^1.51`, `@mastra/mcp@^1.14`)
 - **DB:** PostgreSQL + pgvector (port 5434, db `spechub`) — direct `pg` driver, no ORM
-- **Embedding:** `@xenova/transformers` local pipeline (`Xenova/all-MiniLM-L6-v2`, 384 dims)
+- **Embedding:** `@xenova/transformers` local pipeline (`Xenova/paraphrase-multilingual-MiniLM-L12-v2`, 384 dims)
 - **Validation:** `zod@^3` for tool schemas
 - **Testing:** Vitest
 

@@ -5,8 +5,8 @@ export class XenovaEmbeddingService implements IEmbeddingService {
   private extractor: FeatureExtractionPipeline | null = null
 
   async initialize(): Promise<void> {
-    this.extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
-    console.log('Embedding model loaded: Xenova/all-MiniLM-L6-v2')
+    this.extractor = await pipeline('feature-extraction', 'Xenova/paraphrase-multilingual-MiniLM-L12-v2')
+    console.log('Embedding model loaded: Xenova/paraphrase-multilingual-MiniLM-L12-v2')
   }
 
   async generateEmbedding(text: string): Promise<number[]> {

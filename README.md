@@ -16,7 +16,7 @@ flowchart LR
     end
     Agentes <-->|MCP| SpecHub[(SpecHub)]
     SpecHub --> PG[(PostgreSQL + pgvector)]
-    SpecHub --> Emb[all-MiniLM-L6-v2]
+    SpecHub --> Emb[paraphrase-multilingual-MiniLM-L12-v2]
 ```
 
 > Todos os agentes compartilham a mesma memória. Quando um agente termina, o próximo continua exatamente de onde o anterior parou.
@@ -106,7 +106,7 @@ O SpecHub centraliza PRD, spec técnica, design e tarefas — tudo versionado, b
 - **Mantém histórico de alterações** — toda mudança na spec ou nas tarefas gera entrada no changelog. Dá pra saber quem alterou o quê e quando.
 - **Memória compartilhada entre agentes** — Cursor, Claude Code, Windsurf e outros leem e escrevem no mesmo lugar.
 - **Busca híbrida** — combina similaridade vetorial com full-text search, com boost por repositório. Retorna as 3 seções mais relevantes, não o documento inteiro.
-- **Embeddings locais** — `all-MiniLM-L6-v2` roda 100% local via `@xenova/transformers`. Sem chamadas de API externa, sem custo de token para gerar embeddings.
+- **Embeddings locais** — `paraphrase-multilingual-MiniLM-L12-v2` roda 100% local via `@xenova/transformers`. Sem chamadas de API externa, sem custo de token para gerar embeddings.
 
 ---
 
@@ -279,7 +279,7 @@ node -e "import('./src/infrastructure/database/umzug.js').then(m => m.umzug.down
 | MCP Framework | Mastra v1 (`@mastra/core`, `@mastra/mcp`) |
 | ORM | Sequelize v6 |
 | Banco | PostgreSQL + pgvector |
-| Embeddings | @xenova/transformers (all-MiniLM-L6-v2, 384d) |
+| Embeddings | @xenova/transformers (paraphrase-multilingual-MiniLM-L12-v2, 384d) |
 | DI | Awilix |
 | Migrations | Umzug v3 |
 | Validação | Zod v3 |

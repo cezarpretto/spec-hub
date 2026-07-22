@@ -28,13 +28,13 @@ Follow this pattern for EVERY spec-related task. Skipping steps or over-calling 
 
 ### CRITICAL: Match Query Language to Document Language
 
-The embedding model (\`all-MiniLM-L6-v2\`) is **English-only**. It cannot align Portuguese queries with Portuguese documents — it treats Portuguese words as out-of-vocabulary noise and produces nearly identical (low-quality) embeddings for unrelated Portuguese sentences.
+The embedding model (\`paraphrase-multilingual-MiniLM-L12-v2\`) supports 50+ languages including Portuguese and English, but cross-language queries are less precise than same-language queries. For best results, mirror the document language.
 
 **After \`get_feature_overview\`, check the headings:**
 - Headings in **Portuguese** → write your query in **Portuguese**
 - Headings in **English** → write your query in **English**
 
-If you query in English against a Portuguese document, the cosine similarity will be close to random — you WILL get irrelevant results. Always mirror the document language in your query.
+Mixing languages degrades precision. Same-language queries aligned with a specific heading from \`get_feature_overview\` give the best results.
 
 4. **Act**: Use \`get_repo_tasks(spec_id)\` to see pending work, then \`update_task_status\` to mark progress. Use \`update_spec_chunk\` to edit sections.
 

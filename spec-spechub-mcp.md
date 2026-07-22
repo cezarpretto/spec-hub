@@ -20,7 +20,7 @@ Um servidor MCP (Model Context Protocol) centralizado, chamado **SpecHub**, que 
 
 O SpecHub armazena specs como documentos Markdown com embedding vetorial (busca semantica) e tasks organizadas por repositorio. O agente consome **apenas o trecho relevante** para o repositorio/task atual, com latencia <300ms e minimo consumo de tokens.
 
-Stack: Node.js + Mastra (framework MCP) + PostgreSQL + pgvector (HNSW) + `@xenova/transformers` para embedding local (modelo `all-MiniLM-L6-v2`, 384 dimensoes, sem API externa).
+Stack: Node.js + Mastra (framework MCP) + PostgreSQL + pgvector (HNSW) + `@xenova/transformers` para embedding local (modelo `paraphrase-multilingual-MiniLM-L12-v2`, 384 dimensoes, 50+ idiomas, sem API externa).
 
 ## User Stories
 
@@ -65,7 +65,7 @@ Stack: Node.js + Mastra (framework MCP) + PostgreSQL + pgvector (HNSW) + `@xenov
 - **Runtime:** Node.js
 - **Framework MCP:** Mastra — MCP server declarativo, tool registration, suporte a SSE/HTTP nativo
 - **Banco:** PostgreSQL 15+ com extensao `pgvector` e `pg_trgm`
-- **Embedding:** `@xenova/transformers` com modelo `Xenova/all-MiniLM-L6-v2` (384 dimensoes, ~80MB, roda local em Node.js, sem API externa)
+- **Embedding:** `@xenova/transformers` com modelo `Xenova/paraphrase-multilingual-MiniLM-L12-v2` (384 dimensoes, ~470MB, suporta 50+ idiomas incluindo portugues e ingles, roda local em Node.js, sem API externa)
 - **Protocolo:** SSE/HTTP (servidor centralizado, um processo serve multiplos agentes)
 
 ### Schema
@@ -80,7 +80,7 @@ specs (
     title       TEXT NOT NULL,
     content     TEXT NOT NULL,           -- Markdown raw, fonte da verdade
     content_tsv TSVECTOR,               -- GENERATED ALWAYS, full-text search
-    embedding   VECTOR(384),            -- all-MiniLM-L6-v2
+    embedding   VECTOR(384),            -- paraphrase-multilingual-MiniLM-L12-v2
     created_at, updated_at, updated_by
 )
 
@@ -226,7 +226,7 @@ DATABASE_URL resultante: `postgresql://spechub:spechub@localhost:5434/spechub`
 
 ## Further Notes
 
-- O modelo de embedding `all-MiniLM-L6-v2` suporta apenas ingles. Conteudo em portugues pode ter qualidade de busca reduzida — considerar upgrade para modelo multilingue (ex: `paraphrase-multilingual-MiniLM-L12-v2`) se a qualidade for insuficiente.
+- O modelo de embedding `paraphrase-multilingual-MiniLM-L12-v2` suporta 50+ idiomas incluindo portugues e ingles. Para garantir maxima precisao, queries devem ser feitas no mesmo idioma do documento (cross-language tem qualidade inferior a same-language).
 - Se o volume de Specs crescer e o embedding document-level se tornar gargalo (muitos documentos, pouca granularidade), migrar para chunk-level embedding e' uma evolucao natural, mas requer re-indexacao completa.
 - O changelog cresce indefinidamente. Para producao, considerar particionamento por mes ou TTL de retencao.
 - O Mastra abstrai o protocolo MCP, mas o SpecHub deve expor um endpoint de health check simples para o deploy (ex: `GET /health`).

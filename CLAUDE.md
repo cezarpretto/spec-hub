@@ -13,7 +13,7 @@ Confluence as the source of truth for cross-repo technical documentation.
 
 - **Framework:** Mastra v1 (`@mastra/core`, `@mastra/mcp`)
 - **DB:** PostgreSQL + pgvector (port 5434, db `spechub`)
-- **Embedding:** `@xenova/transformers` running `Xenova/all-MiniLM-L6-v2` locally
+- **Embedding:** `@xenova/transformers` running `Xenova/paraphrase-multilingual-MiniLM-L12-v2` locally
 - **Protocol:** MCP over SSE/HTTP
 
 ## Key files

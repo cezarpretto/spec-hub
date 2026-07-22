@@ -6,7 +6,7 @@ export function createSearchSpecContextTool(container: AppContainer) {
   return createTool({
     id: 'search_spec_context',
     description:
-      'Search inside ONE document with a NATURAL LANGUAGE question. Returns top-3 relevant sections via vector + full-text search. HARD LIMIT: call at most TWICE per intent. CRITICAL: the embedding model is English-only — you MUST write the query in the SAME LANGUAGE as the document. Check headings from get_feature_overview to detect the language first. Write a plain sentence like "How does auth blocking work?" (English) or "Como funciona o bloqueio de autenticacao?" (Portuguese) — NEVER paste keyword lists, code slugs, or mixed-language strings. Use headings to scope your query to one section at a time.',
+      'Search inside ONE document with a NATURAL LANGUAGE question. Returns top-3 relevant sections via vector + full-text search. HARD LIMIT: call at most TWICE per intent. The embedding model supports 50+ languages — write the query in the SAME LANGUAGE as the document (check headings from get_feature_overview to detect). Write a plain sentence like "How does auth blocking work?" (English) or "Como funciona o bloqueio de autenticacao?" (Portuguese) — NEVER paste keyword lists, code slugs, or mixed-language strings. Use headings to scope your query to one section at a time.',
     inputSchema: z.object({
       spec_id: z.string().optional().describe('UUID of the document, or "SOURCE_TYPE:SOURCE_KEY" (e.g. "spec:SHELL-1234")'),
       source_type: z.string().optional().describe("Document type (e.g. 'prd', 'spec', 'design'). Required to disambiguate when multiple documents share the same source_key."),
