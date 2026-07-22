@@ -57,7 +57,16 @@ Every \`search_spec_context\` query must be a single, plain-language question in
 - "API Contracts B3 checkBySubdomain endpoint retorna subdomain deactivated"
 - "Implementation Decisions Schema Change Domain Model"
 
-**Rule**: Before writing a query, look at the headings from \`get_feature_overview\`. Pick the ONE heading that best matches your intent. Write a single-sentence question about that heading's topic. If you need more than 2 topics, prioritize and make only 2 queries.
+**CRITICAL RULE — Cite the heading**: The heading name from \`get_feature_overview\` contains the EXACT keywords that appear in that section. Your paraphrased vocabulary may not. ALWAYS include the heading name verbatim in your query.
+
+**Right way** (heading-first):
+1. \`get_feature_overview\` returns headings: ["API Contracts", "Fluxo do Frontend", "Schema Change", ...]
+2. You want to know the endpoint contract → heading is "API Contracts"
+3. Query: "What does the API Contracts section define?" — NOT "Qual é o contrato do novo endpoint?"
+
+This works because "API" and "Contracts" appear as words in that section's text. Your paraphrase "contrato do novo endpoint" uses words that DON'T appear there — they match a different section (e.g. User Stories) instead.
+
+**Rule**: Look at the headings. Pick one. Write a single-sentence question that INCLUDES that heading's name. If you need more than 2 topics, prioritize and make only 2 queries.
 
 ### Common Anti-Patterns (DO NOT DO)
 
