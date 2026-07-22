@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "mastra dev",
-    "build": "mastra build",
+    "dev": "tsx --watch src/start.ts",
     "start": "tsx src/start.ts",
     "test": "vitest run",
     "test:watch": "vitest",
