@@ -22,21 +22,26 @@ Follow this pattern for EVERY spec-related task. Skipping steps or over-calling 
 
 1. **Discover**: \`list_card_documents(source_key)\` — always first. Learn what artifacts exist (prd, spec, design, etc.). Never assume the source_key maps to a single document.
 
-2. **Orient**: \`get_feature_overview(spec_id)\` — get the document's heading index. Use the returned section headings to **detect the document language** and scope your next search. The embedding model is English-only — headings reveal whether the document is in Portuguese or English.
+2. **Orient**: \`get_feature_overview(spec_id)\` — get the heading index. Use headings to detect the document language and understand sections. Run this BEFORE any search.
 
-3. **Read**: \`search_spec_context(spec_id, query)\` — make at most 2 calls, NEVER more. One broad query first, then at most ONE follow-up scoped to a heading from step 2. This tool returns only top-3 snippets per call; a 3rd call will NOT reveal new information.
+3. **Read**: \`search_spec_context(spec_id, query)\` — make at most 2 calls, NEVER more. One broad query first, then at most ONE follow-up scoped to a heading from step 2. This tool returns top-3 snippets per call; beyond 2 calls there is nothing new to find.
 
-### CRITICAL: Match Query Language to Document Language
+4. **Act**: Use \`get_repo_tasks(spec_id)\` to see pending work. The task's \`context_snippet\` IS your implementation brief — it summarizes what to build for that repo. Then use \`update_task_status\` to mark progress and \`update_spec_chunk\` to edit sections.
 
-The embedding model (\`paraphrase-multilingual-MiniLM-L12-v2\`) supports 50+ languages including Portuguese and English, but cross-language queries are less precise than same-language queries. For best results, mirror the document language.
+### Spec vs Task: What Lives Where
 
-**After \`get_feature_overview\`, check the headings:**
-- Headings in **Portuguese** → write your query in **Portuguese**
-- Headings in **English** → write your query in **English**
+Understanding this distinction prevents wasted search calls:
 
-Mixing languages degrades precision. Same-language queries aligned with a specific heading from \`get_feature_overview\` give the best results.
+| Tool | Contains | Example |
+|------|----------|---------|
+| \`search_spec_context\` | Architectural decisions, API contracts, design rationale, user stories, testing strategy | "POST /auth/login returns 423 with TENANT_DEACTIVATED", "Schema: add deactivated column to tenants" |
+| \`context_snippet\` on a task | Implementation summary for a specific repo | "AuthStore captures HTTP 423, LoginForm shows specific message instead of generic error" |
 
-4. **Act**: Use \`get_repo_tasks(spec_id)\` to see pending work, then \`update_task_status\` to mark progress. Use \`update_spec_chunk\` to edit sections.
+**Critical rule**: When implementing a task, you already have the \`context_snippet\` from \`get_repo_tasks\`. That's your brief. Use \`search_spec_context\` ONLY to confirm API contracts, schema decisions, and design choices — NOT to hunt for class names, component names, or test file lists. Those details live in the codebase, not in the spec.
+
+### Match Query Language to Document Language
+
+The embedding model (\`paraphrase-multilingual-MiniLM-L12-v2\`) supports 50+ languages. Same-language queries give the best results — check headings from \`get_feature_overview\` and mirror the language in your query. Cross-language searches are less precise.
 
 ### Query Writing Rules
 
@@ -56,11 +61,12 @@ Every \`search_spec_context\` query must be a single, plain-language question in
 
 ### Common Anti-Patterns (DO NOT DO)
 
-- **Spam-searching**: Making 3+ \`search_spec_context\` calls. STOP at 2. A 3rd call with different keywords will NOT find content the first 2 missed — it will just return lower-confidence noise.
-- **Keyword-dumping**: Concatenating code symbols, mixed pt/en, and technical terms into a single string. This is NOT how vector search works. Each query is embedded as a sentence — a bag of mixed keywords produces a garbage embedding that matches nothing well.
-- **Skipping \`list_card_documents\`**: Never go straight to \`search_spec_context\` with only a source_key and source_type. First confirm what documents exist.
-- **Skipping \`get_feature_overview\`**: Never search blind. Use the heading index to target your query at the right section.
-- **Reconstructing the full spec**: There is no "get full content" tool. \`search_spec_context\` returns snippets, \`get_feature_overview\` returns structure. Use them together — not as a substitute for reading the full document.`,
+- **Searching for code in the spec**: The spec describes WHAT and WHY — architecture, contracts, decisions. It does NOT contain class names, component implementations, or test file names. If the \`context_snippet\` says "AuthStore captures HTTP 423", don't search the spec for "AuthStore" — that detail is for the codebase, not the spec.
+- **Spam-searching**: Making 3+ \`search_spec_context\` calls. STOP at 2. A 3rd call will NOT find content the first 2 missed — if you didn't find it in 2 calls, it's not in the spec.
+- **Keyword-dumping**: Concatenating code symbols, mixed languages, and technical terms into a search string. Each query is embedded as a sentence — a bag of mixed keywords produces a garbage embedding.
+- **Skipping \`list_card_documents\`**: Never go straight to \`search_spec_context\` without confirming what documents exist.
+- **Skipping \`get_feature_overview\`**: Never search blind. Use the heading index.
+- **Reconstructing the full spec**: There is no "get full content" tool. \`search_spec_context\` + \`get_feature_overview\` is sufficient — stop after 2 searches and start implementing.`,
 
     tools: {
       save_spec: createSaveSpecTool(container),
