@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx --watch src/start.ts",
-    "start": "tsx src/start.ts",
+    "dev": "tsx --env-file=.env --watch src/start.ts",
+    "start": "tsx --env-file=.env src/start.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

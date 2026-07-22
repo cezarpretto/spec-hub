@@ -48,6 +48,7 @@ export function createAuthMiddleware() {
   }
 
   return createOAuthMiddleware({
+    mcpPath: '/',
     oauth: {
       resource: `http://localhost:${port}/mcp`,
       authorizationServers: ['https://accounts.google.com'],
