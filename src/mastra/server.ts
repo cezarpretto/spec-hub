@@ -44,13 +44,33 @@ export function createHttpServer(
       const url = new URL(req.url || '/', `http://localhost:${port}`)
       await authMiddleware(req, res, url)
     })
+
+    app.get('/.well-known/oauth-authorization-server', (_req, res) => {
+      res.json({
+        issuer: `http://localhost:${parseInt(process.env.PORT || '3456', 10)}`,
+        authorization_endpoint: `http://localhost:${parseInt(process.env.PORT || '3456', 10)}/authorize`,
+        token_endpoint: `http://localhost:${parseInt(process.env.PORT || '3456', 10)}/token`,
+        registration_endpoint: `http://localhost:${parseInt(process.env.PORT || '3456', 10)}/register`,
+        scopes_supported: ['openid', 'email'],
+        response_types_supported: ['code'],
+        grant_types_supported: ['authorization_code'],
+        token_endpoint_auth_methods_supported: ['none'],
+      })
+    })
   }
 
   if (oauthHandlers) {
     app.post('/oauth/register', oauthHandlers.handleRegister)
+    app.post('/register', oauthHandlers.handleRegister)
+
     app.get('/oauth/authorize', oauthHandlers.handleAuthorize)
+    app.get('/authorize', oauthHandlers.handleAuthorize)
+
     app.get('/oauth/callback', oauthHandlers.handleCallback)
+    app.get('/callback', oauthHandlers.handleCallback)
+
     app.post('/oauth/token', oauthHandlers.handleToken)
+    app.post('/token', oauthHandlers.handleToken)
   }
 
   app.all('/mcp', async (req, res) => {
