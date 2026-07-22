@@ -3,6 +3,7 @@ import { buildContainer } from './container/index.js'
 import { createSpecHubMcpServer } from './mastra/mcp.js'
 import { createAuthMiddleware } from './mastra/auth.js'
 import { createHttpServer } from './mastra/server.js'
+import { createOAuthServer } from './mastra/oauth.js'
 
 const port = parseInt(process.env.PORT || '3456', 10)
 
@@ -15,7 +16,15 @@ await embeddingService.initialize()
 
 const specHubMcpServer = createSpecHubMcpServer(container)
 const authMiddleware = createAuthMiddleware()
-const app = createHttpServer(specHubMcpServer, authMiddleware)
+
+let oauthHandlers: ReturnType<typeof createOAuthServer> | undefined
+if (authMiddleware) {
+  const clientId = process.env.GOOGLE_CLIENT_ID!
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET!
+  oauthHandlers = createOAuthServer(clientId, clientSecret)
+}
+
+const app = createHttpServer(specHubMcpServer, authMiddleware, oauthHandlers)
 
 app.listen(port, () => {
   console.log(`SpecHub MCP server listening on http://localhost:${port}${authMiddleware ? ' (auth enabled)' : ' (no auth)'}`)

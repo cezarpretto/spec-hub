@@ -55,6 +55,7 @@ describe('auth middleware', () => {
 
   it('health endpoint returns 200 without auth configured', async () => {
     delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
     delete process.env.GOOGLE_ALLOWED_DOMAINS
 
     const { createAuthMiddleware } = await import('../src/mastra/auth.js')
@@ -74,6 +75,7 @@ describe('auth middleware', () => {
 
   it('health endpoint returns 200 with auth configured', async () => {
     process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
     process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
 
     const { createAuthMiddleware } = await import('../src/mastra/auth.js')
@@ -93,6 +95,7 @@ describe('auth middleware', () => {
 
   it('rejects POST /mcp without token when auth is configured', async () => {
     process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
     process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
 
     const { createAuthMiddleware } = await import('../src/mastra/auth.js')
@@ -110,6 +113,7 @@ describe('auth middleware', () => {
 
   it('rejects POST /mcp with invalid token when auth is configured', async () => {
     process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
     process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
 
     const { createAuthMiddleware } = await import('../src/mastra/auth.js')
@@ -130,6 +134,7 @@ describe('auth middleware', () => {
 
   it('rejects POST /mcp with token from non-allowed domain', async () => {
     process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
     process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
 
     const { __mockVerifyIdToken } = await import('google-auth-library')
@@ -160,6 +165,7 @@ describe('auth middleware', () => {
 
   it('passes POST /mcp with valid token from allowed domain', async () => {
     process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
     process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
 
     const { __mockVerifyIdToken } = await import('google-auth-library')
