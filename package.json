@@ -4,9 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "mastra dev",
-    "build": "mastra build",
-    "start": "mastra start",
+    "dev": "tsx --env-file=.env --watch src/start.ts",
+    "start": "tsx --env-file=.env src/start.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
@@ -16,16 +15,20 @@
     "@mastra/mcp": "1.14.0",
     "@xenova/transformers": "^2.17.2",
     "awilix": "^13.0.5",
+    "express": "^5.2.1",
+    "google-auth-library": "^10.9.0",
     "pg": "^8.13.0",
     "sequelize": "^6.37.8",
     "umzug": "^3.8.3",
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.11.0",
     "@types/sequelize": "^4.28.20",
     "mastra": "^1.19.0",
+    "tsx": "^4.23.1",
     "typescript": "^5.7.0",
     "vitest": "^4.1.10"
   }
