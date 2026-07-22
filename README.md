@@ -155,6 +155,37 @@ Toda operação de escrita registra entrada no changelog.
 
 ---
 
+## Changelog
+
+### 2026-07-22 — Google OAuth Authentication
+
+Adicionada autenticação opcional via Google OAuth 2.0 com Authorization Code flow.
+
+**O que mudou:**
+- Servidor Express próprio substituiu o auto-server do Mastra, permitindo middlewares customizados
+- `POST /register`, `GET /authorize`, `GET /callback`, `POST /token` — authorization server completo para fluxo OAuth com redirect no navegador
+- `/.well-known/oauth-protected-resource` e `/.well-known/oauth-authorization-server` — descoberta automática de metadados OAuth
+- `createOAuthMiddleware` do `@mastra/mcp` protegendo os endpoints MCP com validação de Google ID Token
+- `GET /health` — health check para probes de container
+- `context.mcp.extra.authInfo` — email e domínio do usuário autenticado disponível nas tools
+
+**Como ativar:**
+```bash
+GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=xxxx
+GOOGLE_ALLOWED_DOMAINS=sua-empresa.com
+```
+
+Sem essas env vars, o comportamento é idêntico ao anterior (sem autenticação).
+
+**Comandos:**
+```bash
+npm run dev    # Dev server com hot reload (Express)
+npm run start  # Produção (Express + auth se configurado)
+```
+
+---
+
 ## Começando
 
 ### Pré-requisitos
