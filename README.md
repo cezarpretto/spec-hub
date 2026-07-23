@@ -123,8 +123,9 @@ O SpecHub centraliza PRD, spec técnica, design e tarefas — tudo versionado, b
 | Ferramenta | O que faz |
 |---|---|
 | `list_card_documents` | Lista todos os documentos de um card (PRD, spec, design, etc.) a partir do `source_key`. Use para descobrir o que já existe antes de buscar. |
-| `search_spec_context` | Busca semântica dentro de uma spec. Top-3 seções mais relevantes para a query. |
+| `search_spec_context` | Busca semântica dentro de uma spec. Top-3 seções mais relevantes para a query. Retorna snippets truncados em ~300 chars para eficiência de tokens. |
 | `get_feature_overview` | Retorna metadados + estrutura de headings da spec. Ideal para o agente se localizar antes de buscar. |
+| `get_section` | Retorna o conteúdo completo de uma seção por heading (sem truncamento). Use quando o snippet do `search_spec_context` for cortado e você precisar da seção inteira. |
 
 ### Acompanhar implementação
 
@@ -203,6 +204,20 @@ npm run lint         # typecheck + circular + eslint + test
 npm run lint:eslint  # ESLint only
 npm run check:circular # madge
 ```
+
+---
+
+### 2026-07-23 — get_section tool: full section content by heading
+
+Nova ferramenta `get_section` que retorna o conteúdo Markdown completo de uma seção identificada por heading, sem truncamento. Resolve o problema onde `search_spec_context` cortava snippets de ~300 chars e o agente não conseguia ler seções inteiras.
+
+**O que mudou:**
+- `get_section(spec_id, section_heading)` — retorna `{ spec_id, section, content, status }` com conteúdo completo da seção (sem limite de caracteres)
+- `status: 'found' | 'not_found'` — consistente com `update_spec_chunk`
+- Atualizado `serverInstructions` em `mcp.ts` para orientar uso da nova tool quando snippets estiverem truncados
+- README atualizado com a nova ferramenta na seção "Recuperar contexto"
+
+**Motivação:** #4 — documentos curtos como open-questions tinham listas cortadas no meio, impedindo o agente de ler todas as perguntas.
 
 ---
 

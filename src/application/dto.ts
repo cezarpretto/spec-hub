@@ -85,6 +85,20 @@ export interface UpdateSpecChunkOutput {
   status: 'updated' | 'not_found'
 }
 
+export interface GetSectionInput {
+  spec_id?: string
+  source_type?: string
+  source_key?: string
+  section_heading: string
+}
+
+export interface GetSectionOutput {
+  spec_id: string
+  section: string
+  content: string
+  status: 'found' | 'not_found'
+}
+
 export interface ListCardDocumentsInput {
   source_key: string
 }

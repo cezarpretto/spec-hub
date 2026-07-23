@@ -10,6 +10,7 @@ import { GetRepoTasksUseCase } from '../application/use-cases/get-repo-tasks.js'
 import { UpdateTaskStatusUseCase } from '../application/use-cases/update-task-status.js'
 import { UpdateSpecChunkUseCase } from '../application/use-cases/update-spec-chunk.js'
 import { ListCardDocumentsUseCase } from '../application/use-cases/list-card-documents.js'
+import { GetSectionUseCase } from '../application/use-cases/get-section.js'
 import type { AppContainer } from './types.js'
 
 export function buildContainer(): AppContainer {
@@ -29,6 +30,7 @@ export function buildContainer(): AppContainer {
     updateTaskStatusUseCase: asClass(UpdateTaskStatusUseCase).singleton(),
     updateSpecChunkUseCase: asClass(UpdateSpecChunkUseCase).singleton(),
     listCardDocumentsUseCase: asClass(ListCardDocumentsUseCase).singleton(),
+    getSectionUseCase: asClass(GetSectionUseCase).singleton(),
   })
 
   return container as AppContainer

@@ -6,6 +6,7 @@ import { createGetRepoTasksTool } from './tools/get-repo-tasks.js'
 import { createUpdateTaskStatusTool } from './tools/update-task-status.js'
 import { createUpdateSpecChunkTool } from './tools/update-spec-chunk.js'
 import { createListCardDocumentsTool } from './tools/list-card-documents.js'
+import { createGetSectionTool } from './tools/get-section.js'
 import { listWorkflowResources, getWorkflowContent } from './workflows/index.js'
 import type { AppContainer } from '../container/types.js'
 
@@ -76,7 +77,7 @@ This works because "API" and "Contracts" appear as words in that section's text.
 - **Keyword-dumping**: Concatenating code symbols, mixed languages, and technical terms into a search string. Each query is embedded as a sentence — a bag of mixed keywords produces a garbage embedding.
 - **Skipping \`list_card_documents\`**: Never go straight to \`search_spec_context\` without confirming what documents exist.
 - **Skipping \`get_feature_overview\`**: Never search blind. Use the heading index.
-- **Reconstructing the full spec**: There is no "get full content" tool. \`search_spec_context\` + \`get_feature_overview\` is sufficient — stop after 2 searches and start implementing.`,
+- **Reconstructing the full spec**: If \`search_spec_context\` returns a truncated snippet (ending with "..."), use \`get_section(spec_id, heading)\` to fetch the complete section content. \`get_section\` returns the full Markdown for a single heading — ideal for reading lists, contracts, or decisions that don't fit in a snippet.`,
 
     resources: {
       listResources: async () => listWorkflowResources(),
@@ -95,6 +96,7 @@ This works because "API" and "Contracts" appear as words in that section's text.
       update_task_status: createUpdateTaskStatusTool(container),
       update_spec_chunk: createUpdateSpecChunkTool(container),
       list_card_documents: createListCardDocumentsTool(container),
+      get_section: createGetSectionTool(container),
     },
   })
 }

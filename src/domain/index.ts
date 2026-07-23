@@ -7,6 +7,7 @@ export type {
   SearchContextResult,
   CreateTaskParams,
   ListBySourceKeyResult,
+  GetSectionResult,
   ISpecRepository,
   ITaskRepository,
   IChangelogRepository,

@@ -10,6 +10,7 @@ import type { GetRepoTasksUseCase } from '../application/use-cases/get-repo-task
 import type { UpdateTaskStatusUseCase } from '../application/use-cases/update-task-status.js'
 import type { UpdateSpecChunkUseCase } from '../application/use-cases/update-spec-chunk.js'
 import type { ListCardDocumentsUseCase } from '../application/use-cases/list-card-documents.js'
+import type { GetSectionUseCase } from '../application/use-cases/get-section.js'
 
 export interface Cradle {
   embeddingService: XenovaEmbeddingService
@@ -23,6 +24,7 @@ export interface Cradle {
   updateTaskStatusUseCase: UpdateTaskStatusUseCase
   updateSpecChunkUseCase: UpdateSpecChunkUseCase
   listCardDocumentsUseCase: ListCardDocumentsUseCase
+  getSectionUseCase: GetSectionUseCase
 }
 
 export type AppContainer = AwilixContainer<Cradle>
