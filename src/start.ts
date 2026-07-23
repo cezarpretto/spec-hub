@@ -6,6 +6,7 @@ import { createHttpServer } from './mastra/server.js'
 import { createOAuthServer } from './mastra/oauth.js'
 
 const port = parseInt(process.env.PORT || '3456', 10)
+const publicUrl = process.env.PUBLIC_URL || `http://localhost:${port}`
 
 await umzug.up()
 
@@ -15,13 +16,13 @@ const embeddingService = container.resolve('embeddingService')
 await embeddingService.initialize()
 
 const specHubMcpServer = createSpecHubMcpServer(container)
-const authMiddleware = createAuthMiddleware()
+const authMiddleware = createAuthMiddleware({ publicUrl })
 
 let oauthHandlers: ReturnType<typeof createOAuthServer> | undefined
 if (authMiddleware) {
   const clientId = process.env.GOOGLE_CLIENT_ID!
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET!
-  oauthHandlers = createOAuthServer(clientId, clientSecret)
+  oauthHandlers = createOAuthServer(clientId, clientSecret, { publicUrl })
 }
 
 const app = createHttpServer(specHubMcpServer, authMiddleware, oauthHandlers)

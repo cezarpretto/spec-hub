@@ -1,7 +1,7 @@
 import { createOAuthMiddleware } from '@mastra/mcp'
 import { OAuth2Client } from 'google-auth-library'
 
-export function createAuthMiddleware() {
+export function createAuthMiddleware(opts?: { publicUrl?: string }) {
   const clientId = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
   const allowedDomainsRaw = process.env.GOOGLE_ALLOWED_DOMAINS
@@ -13,7 +13,7 @@ export function createAuthMiddleware() {
   const allowedDomains = allowedDomainsRaw.split(',').map(d => d.trim())
   const oauthClient = new OAuth2Client(clientId)
   const port = parseInt(process.env.PORT || '3456', 10)
-  const baseUrl = `http://localhost:${port}`
+  const baseUrl = opts?.publicUrl || process.env.PUBLIC_URL || `http://localhost:${port}`
 
   return createOAuthMiddleware({
     mcpPath: '/',

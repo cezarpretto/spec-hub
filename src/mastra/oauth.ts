@@ -23,7 +23,7 @@ function base64URLEncode(buffer: Buffer): string {
     .replace(/=+$/, '')
 }
 
-export function createOAuthServer(clientId: string, clientSecret: string) {
+export function createOAuthServer(clientId: string, clientSecret: string, opts?: { publicUrl?: string }) {
   const sessions = new Map<string, AuthSession>()
   const authCodes = new Map<string, AuthSession>()
 
@@ -32,6 +32,8 @@ export function createOAuthServer(clientId: string, clientSecret: string) {
   }
 
   const googleClient = new OAuth2Client(clientId, clientSecret)
+  const port = parseInt(process.env.PORT || '3456', 10)
+  const baseUrl = opts?.publicUrl || process.env.PUBLIC_URL || `http://localhost:${port}`
 
   async function handleRegister(req: Request, res: Response) {
     const metadata = req.body || {}
@@ -64,7 +66,7 @@ export function createOAuthServer(clientId: string, clientSecret: string) {
     }
     sessions.set(sessionId, authSession)
 
-    const googleRedirectUri = `http://localhost:${parseInt(process.env.PORT || '3456', 10)}/oauth/callback`
+          const googleRedirectUri = `${baseUrl}/oauth/callback`
     const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
     googleAuthUrl.searchParams.set('client_id', clientId)
     googleAuthUrl.searchParams.set('redirect_uri', googleRedirectUri)
@@ -93,7 +95,7 @@ export function createOAuthServer(clientId: string, clientSecret: string) {
     }
 
     try {
-      const googleRedirectUri = `http://localhost:${parseInt(process.env.PORT || '3456', 10)}/oauth/callback`
+            const googleRedirectUri = `${baseUrl}/oauth/callback`
       const { tokens } = await googleClient.getToken({
         code: code as string,
         redirect_uri: googleRedirectUri,
