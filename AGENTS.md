@@ -178,10 +178,38 @@ node -e "import('./src/infrastructure/database/umzug.js').then(m => m.umzug.down
 
 ## Env vars
 
-| Variable      | Default                                                    | Description            |
-| ------------- | ---------------------------------------------------------- | ---------------------- |
-| `DATABASE_URL` | `postgresql://spechub:spechub@localhost:5434/spechub`    | PostgreSQL connection  |
-| `PORT`         | `3456`                                                     | HTTP server port       |
+Database connection uses individual vars first, falls back to `DATABASE_URL`.
+
+| Variable           | Default      | Description                                 |
+| ------------------ | ------------ | ------------------------------------------- |
+| `DATABASE_HOST`     | —            | PostgreSQL host (takes priority over URL)   |
+| `DATABASE_PORT`     | —            | PostgreSQL port (takes priority over URL)   |
+| `DATABASE_USER`     | —            | PostgreSQL user (takes priority over URL)   |
+| `DATABASE_PASSWORD` | —            | PostgreSQL password (takes priority over URL) |
+| `DATABASE_NAME`     | —            | PostgreSQL database (takes priority over URL) |
+| `DATABASE_URL`      | `postgresql://spechub:spechub@localhost:5434/spechub` | Fallback connection string |
+| `PORT`              | `3456`        | HTTP server port                            |
+
+## Docker
+
+```bash
+docker build -t spechub-mcp .
+
+docker run -d \
+  --name spechub \
+  -p 3456:3456 \
+  -e DATABASE_HOST=host.docker.internal \
+  -e DATABASE_PORT=5434 \
+  -e DATABASE_USER=spechub \
+  -e DATABASE_PASSWORD=spechub \
+  -e DATABASE_NAME=spechub \
+  -v spechub-model-cache:/app/.cache \
+  spechub-mcp
+```
+
+The embedding model (~470MB) downloads on first startup into `/app/.cache`. Mount a volume to persist it across restarts.
+
+Public image: `cezarpretto/spechub-mcp:latest` (Docker Hub). Multi-platform (linux/amd64, linux/arm64).
 
 ## Dependencies key decisions
 
