@@ -8,7 +8,10 @@
     "start": "tsx --env-file=.env src/start.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint:eslint": "eslint src/",
+    "check:circular": "madge --circular --extensions ts --ts-config tsconfig.json src/",
+    "lint": "npm run typecheck && npm run check:circular && npm run lint:eslint && npm run test"
   },
   "dependencies": {
     "@mastra/core": "1.51.0",
@@ -23,13 +26,17 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/express": "^5.0.6",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.11.0",
     "@types/sequelize": "^4.28.20",
+    "eslint": "^9.39.5",
+    "madge": "^8.0.0",
     "mastra": "^1.19.0",
     "tsx": "^4.23.1",
     "typescript": "^5.7.0",
+    "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.10"
   }
 }
