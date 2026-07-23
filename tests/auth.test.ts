@@ -233,4 +233,102 @@ describe('auth middleware', () => {
     })
     expect(res.status).toBe(200)
   })
+
+  it('uses PUBLIC_URL for resource and authorizationServers when configured', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
+    process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
+
+    const { __mockVerifyIdToken } = await import('google-auth-library')
+    __mockVerifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        sub: 'user123',
+        email: 'user@example.com',
+        hd: 'example.com',
+        exp: 9999999999,
+      }),
+    })
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createHttpServer } = await import('../src/mastra/server.js')
+    const { MCPServer } = await import('@mastra/mcp')
+
+    const publicUrl = 'https://spechub.example.com'
+    const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
+    const authMiddleware = createAuthMiddleware({ publicUrl })
+    const app = createHttpServer(specHubMcpServer, authMiddleware)
+    port = await startTestServer(app)
+
+    const res = await fetchUrl('/mcp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        Authorization: 'Bearer valid-token',
+      },
+      body: jsonRpcInitialize,
+    })
+    expect(res.status).toBe(200)
+  })
+
+  it('authorize redirect uses PUBLIC_URL in Google redirect_uri', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
+    process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
+
+    const publicUrl = 'https://spechub.example.com'
+    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createHttpServer } = await import('../src/mastra/server.js')
+    const { createOAuthServer } = await import('../src/mastra/oauth.js')
+    const { MCPServer } = await import('@mastra/mcp')
+
+    const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
+    const authMiddleware = createAuthMiddleware({ publicUrl })
+    const oauthHandlers = createOAuthServer(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      { publicUrl },
+    )
+    const app = createHttpServer(specHubMcpServer, authMiddleware, oauthHandlers)
+    port = await startTestServer(app)
+
+    const res = await fetchUrl('/authorize?response_type=code&client_id=test&redirect_uri=http://127.0.0.1/callback', {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(302)
+    const location = res.headers.get('location')
+    expect(location).toBeTruthy()
+    const googleUrl = new URL(location!)
+    expect(googleUrl.searchParams.get('redirect_uri')).toBe(`${publicUrl}/oauth/callback`)
+  })
+
+  it('oauth flow works without PUBLIC_URL using localhost fallback', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
+    process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createHttpServer } = await import('../src/mastra/server.js')
+    const { createOAuthServer } = await import('../src/mastra/oauth.js')
+    const { MCPServer } = await import('@mastra/mcp')
+
+    const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
+    const authMiddleware = createAuthMiddleware()
+    const oauthHandlers = createOAuthServer(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+    )
+    const app = createHttpServer(specHubMcpServer, authMiddleware, oauthHandlers)
+    port = await startTestServer(app)
+
+    const res = await fetchUrl('/authorize?response_type=code&client_id=test&redirect_uri=http://127.0.0.1/callback', {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(302)
+    const location = res.headers.get('location')
+    expect(location).toBeTruthy()
+    const googleUrl = new URL(location!)
+    const portValue = parseInt(process.env.PORT || '3456', 10)
+    expect(googleUrl.searchParams.get('redirect_uri')).toBe(`http://localhost:${portValue}/oauth/callback`)
+  })
 })
