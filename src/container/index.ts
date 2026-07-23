@@ -1,8 +1,9 @@
-import { createContainer, asClass, Lifetime } from 'awilix'
+import { createContainer, asClass } from 'awilix'
 import { XenovaEmbeddingService } from '../infrastructure/services/xenova-embedding-service.js'
 import { SequelizeSpecRepository } from '../infrastructure/repositories/sequelize-spec-repository.js'
 import { SequelizeTaskRepository } from '../infrastructure/repositories/sequelize-task-repository.js'
 import { SequelizeChangelogRepository } from '../infrastructure/repositories/sequelize-changelog-repository.js'
+import { SequelizeUnitOfWork } from '../infrastructure/repositories/sequelize-unit-of-work.js'
 import { SaveSpecUseCase } from '../application/use-cases/save-spec.js'
 import { GetFeatureOverviewUseCase } from '../application/use-cases/get-feature-overview.js'
 import { SearchSpecContextUseCase } from '../application/use-cases/search-spec-context.js'
@@ -22,6 +23,7 @@ export function buildContainer(): AppContainer {
     specRepository: asClass(SequelizeSpecRepository).singleton(),
     taskRepository: asClass(SequelizeTaskRepository).singleton(),
     changelogRepository: asClass(SequelizeChangelogRepository).singleton(),
+    unitOfWork: asClass(SequelizeUnitOfWork).singleton(),
 
     saveSpecUseCase: asClass(SaveSpecUseCase).singleton(),
     getFeatureOverviewUseCase: asClass(GetFeatureOverviewUseCase).singleton(),

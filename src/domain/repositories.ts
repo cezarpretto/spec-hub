@@ -49,13 +49,17 @@ export interface GetSectionResult {
   found: boolean
 }
 
+export interface IUnitOfWork {
+  transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>
+}
+
 export interface ISpecRepository {
-  upsert(params: UpsertSpecParams): Promise<UpsertSpecResult>
+  upsert(params: UpsertSpecParams, tx?: unknown): Promise<UpsertSpecResult>
   findById(id: string): Promise<Spec | null>
   findBySourceKey(sourceType: string, sourceKey: string): Promise<Spec | null>
   listBySourceKey(sourceKey: string): Promise<ListBySourceKeyResult[]>
   searchContext(params: SearchContextParams): Promise<SearchContextResult>
-  updateContent(specId: string, content: string, embedding: number[], updatedBy: string): Promise<Spec | null>
+  updateContent(specId: string, content: string, embedding: number[], updatedBy: string, tx?: unknown): Promise<Spec | null>
   getSection(specId: string, heading: string): Promise<GetSectionResult>
 }
 
@@ -78,5 +82,5 @@ export interface ITaskRepository {
 }
 
 export interface IChangelogRepository {
-  insert(entry: Omit<ChangelogEntry, 'id' | 'changed_at'>): Promise<void>
+  insert(entry: Omit<ChangelogEntry, 'id' | 'changed_at'>, tx?: unknown): Promise<void>
 }

@@ -3,6 +3,7 @@ import type { XenovaEmbeddingService } from '../infrastructure/services/xenova-e
 import type { SequelizeSpecRepository } from '../infrastructure/repositories/sequelize-spec-repository.js'
 import type { SequelizeTaskRepository } from '../infrastructure/repositories/sequelize-task-repository.js'
 import type { SequelizeChangelogRepository } from '../infrastructure/repositories/sequelize-changelog-repository.js'
+import type { SequelizeUnitOfWork } from '../infrastructure/repositories/sequelize-unit-of-work.js'
 import type { SaveSpecUseCase } from '../application/use-cases/save-spec.js'
 import type { GetFeatureOverviewUseCase } from '../application/use-cases/get-feature-overview.js'
 import type { SearchSpecContextUseCase } from '../application/use-cases/search-spec-context.js'
@@ -17,6 +18,7 @@ export interface Cradle {
   specRepository: SequelizeSpecRepository
   taskRepository: SequelizeTaskRepository
   changelogRepository: SequelizeChangelogRepository
+  unitOfWork: SequelizeUnitOfWork
   saveSpecUseCase: SaveSpecUseCase
   getFeatureOverviewUseCase: GetFeatureOverviewUseCase
   searchSpecContextUseCase: SearchSpecContextUseCase

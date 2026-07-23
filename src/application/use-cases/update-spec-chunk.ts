@@ -1,21 +1,24 @@
-import type { ISpecRepository, IChangelogRepository, IEmbeddingService } from '../../domain/index.js'
+import type { ISpecRepository, IChangelogRepository, IEmbeddingService, IUnitOfWork } from '../../domain/index.js'
 import type { UpdateSpecChunkInput, UpdateSpecChunkOutput } from '../dto.js'
 
 interface Dependencies {
   specRepository: ISpecRepository
   changelogRepository: IChangelogRepository
   embeddingService: IEmbeddingService
+  unitOfWork: IUnitOfWork
 }
 
 export class UpdateSpecChunkUseCase {
   private readonly specRepository: ISpecRepository
   private readonly changelogRepository: IChangelogRepository
   private readonly embeddingService: IEmbeddingService
+  private readonly unitOfWork: IUnitOfWork
 
   constructor(deps: Dependencies) {
     this.specRepository = deps.specRepository
     this.changelogRepository = deps.changelogRepository
     this.embeddingService = deps.embeddingService
+    this.unitOfWork = deps.unitOfWork
   }
 
   async execute(input: UpdateSpecChunkInput): Promise<UpdateSpecChunkOutput> {
@@ -38,18 +41,20 @@ export class UpdateSpecChunkUseCase {
 
     const embedding = await this.embeddingService.generateEmbedding(updatedContent)
 
-    await this.specRepository.updateContent(specId, updatedContent, embedding, input.updated_by)
+    return this.unitOfWork.transaction(async (tx) => {
+      await this.specRepository.updateContent(specId, updatedContent, embedding, input.updated_by, tx)
 
-    await this.changelogRepository.insert({
-      spec_id: specId,
-      task_id: null,
-      field: `section:${input.section_heading}`,
-      old_value: section,
-      new_value: input.new_content,
-      changed_by: input.updated_by,
+      await this.changelogRepository.insert({
+        spec_id: specId,
+        task_id: null,
+        field: `section:${input.section_heading}`,
+        old_value: section,
+        new_value: input.new_content,
+        changed_by: input.updated_by,
+      }, tx)
+
+      return { spec_id: specId, section: input.section_heading, status: 'updated' }
     })
-
-    return { spec_id: specId, section: input.section_heading, status: 'updated' }
   }
 
   private replaceSectionByHeading(
