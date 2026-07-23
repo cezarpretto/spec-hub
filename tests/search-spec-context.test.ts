@@ -113,4 +113,49 @@ describe('search_spec_context', () => {
       tool.execute!({ source_type: 'JIRA', source_key: 'SHELL-9999', query: 'test' }),
     ).rejects.toThrow('Spec not found for JIRA/SHELL-9999')
   })
+
+  it('returns empty matches when no sections are relevant', async () => {
+    mockSearchSpecContextUseCase.execute.mockResolvedValue({
+      spec_id: mockSpecId,
+      title: 'Feature: Payment Gateway',
+      matches: [],
+    })
+
+    const result = await tool.execute!({
+      spec_id: mockSpecId,
+      query: 'nonexistent topic',
+    })
+
+    expect(result.title).toBe('Feature: Payment Gateway')
+    expect(result.matches).toHaveLength(0)
+  })
+
+  it('returns matches with combined scoring from vector, text, TF, and repo boost', async () => {
+    const scoredMatches = [
+      { section: 'Kafka Contract', snippet: 'The payment event schema...', score: 0.87 },
+      { section: 'Event Flow', snippet: '1. Producer sends...', score: 0.72 },
+      { section: 'Error Handling', snippet: 'On failure, retry with...', score: 0.45 },
+    ]
+
+    mockSearchSpecContextUseCase.execute.mockResolvedValue({
+      spec_id: mockSpecId,
+      title: 'Feature: Payment Gateway',
+      matches: scoredMatches,
+    })
+
+    const result = await tool.execute!({
+      spec_id: mockSpecId,
+      query: 'payment event schema flow',
+      repo: 'service-payments-consumer',
+    })
+
+    expect(result.matches).toHaveLength(3)
+    expect(result.matches[0].score).toBeGreaterThan(result.matches[1].score)
+    expect(result.matches[1].score).toBeGreaterThan(result.matches[2].score)
+    expect(mockSearchSpecContextUseCase.execute).toHaveBeenCalledWith({
+      spec_id: mockSpecId,
+      query: 'payment event schema flow',
+      repo: 'service-payments-consumer',
+    })
+  })
 })
