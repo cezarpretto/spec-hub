@@ -8,6 +8,7 @@ export type {
   CreateTaskParams,
   ListBySourceKeyResult,
   GetSectionResult,
+  IUnitOfWork,
   ISpecRepository,
   ITaskRepository,
   IChangelogRepository,
