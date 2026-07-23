@@ -1,4 +1,4 @@
-import type { ISpecRepository, UpsertSpecParams, UpsertSpecResult, SearchContextParams, SearchContextResult, Spec, ListBySourceKeyResult } from '../../domain/index.js'
+import type { ISpecRepository, UpsertSpecParams, UpsertSpecResult, SearchContextParams, SearchContextResult, Spec, ListBySourceKeyResult, GetSectionResult } from '../../domain/index.js'
 import { SpecModel, TaskModel } from '../database/models/index.js'
 
 type SpecRow = {
@@ -183,6 +183,22 @@ export class SequelizeSpecRepository implements ISpecRepository {
       updated_at: row.updated_at,
       updated_by: row.updated_by,
     }
+  }
+
+  async getSection(specId: string, heading: string): Promise<GetSectionResult> {
+    const row = await SpecModel.findByPk(specId, { raw: true }) as unknown as SpecRow | null
+    if (!row) {
+      return { section: heading, content: '', found: false }
+    }
+
+    const sections = this.splitIntoSections(row.content)
+    const match = sections.find(s => s.heading === heading)
+
+    if (!match) {
+      return { section: heading, content: '', found: false }
+    }
+
+    return { section: match.heading, content: match.content, found: true }
   }
 
   private fromPgVector(vector: string): number[] {

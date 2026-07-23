@@ -43,6 +43,12 @@ export interface ListBySourceKeyResult {
   updated_at: Date
 }
 
+export interface GetSectionResult {
+  section: string
+  content: string
+  found: boolean
+}
+
 export interface ISpecRepository {
   upsert(params: UpsertSpecParams): Promise<UpsertSpecResult>
   findById(id: string): Promise<Spec | null>
@@ -50,6 +56,7 @@ export interface ISpecRepository {
   listBySourceKey(sourceKey: string): Promise<ListBySourceKeyResult[]>
   searchContext(params: SearchContextParams): Promise<SearchContextResult>
   updateContent(specId: string, content: string, embedding: number[], updatedBy: string): Promise<Spec | null>
+  getSection(specId: string, heading: string): Promise<GetSectionResult>
 }
 
 export interface CreateTaskParams {
