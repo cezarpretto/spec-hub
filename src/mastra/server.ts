@@ -50,6 +50,7 @@ export function createHttpServer(
   const mcpBase = '/api/mcp/spechub'
 
   app.use(express.json())
+  app.use(express.urlencoded({ extended: true }))
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' })
@@ -70,7 +71,8 @@ export function createHttpServer(
         registration_endpoint: `http://localhost:${parseInt(process.env.PORT || '3456', 10)}/register`,
         scopes_supported: ['openid', 'email'],
         response_types_supported: ['code'],
-        grant_types_supported: ['authorization_code'],
+        grant_types_supported: ['authorization_code', 'refresh_token'],
+        code_challenge_methods_supported: ['S256'],
         token_endpoint_auth_methods_supported: ['none'],
       })
     })

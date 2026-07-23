@@ -6,8 +6,21 @@ interface AuthSession {
   clientId: string
   redirectUri: string
   state: string
+  codeChallenge?: string
+  codeChallengeMethod?: string
   idToken?: string
   used?: boolean
+}
+
+function sha256(verifier: string): Buffer {
+  return createHash('sha256').update(verifier).digest()
+}
+
+function base64URLEncode(buffer: Buffer): string {
+  return buffer.toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
 }
 
 export function createOAuthServer(clientId: string, clientSecret: string) {
@@ -34,7 +47,7 @@ export function createOAuthServer(clientId: string, clientSecret: string) {
   }
 
   async function handleAuthorize(req: Request, res: Response) {
-    const { response_type, client_id, redirect_uri, state, code_challenge } = req.query
+    const { response_type, client_id, redirect_uri, state, code_challenge, code_challenge_method } = req.query
 
     if (response_type !== 'code') {
       res.status(400).json({ error: 'unsupported_response_type' })
@@ -46,6 +59,8 @@ export function createOAuthServer(clientId: string, clientSecret: string) {
       clientId: (client_id as string) || 'spechub-mcp',
       redirectUri: (redirect_uri as string) || 'http://127.0.0.1/callback',
       state: (state as string) || '',
+      codeChallenge: (code_challenge as string) || undefined,
+      codeChallengeMethod: (code_challenge_method as string) || undefined,
     }
     sessions.set(sessionId, authSession)
 
@@ -107,7 +122,7 @@ export function createOAuthServer(clientId: string, clientSecret: string) {
   }
 
   async function handleToken(req: Request, res: Response) {
-    const { grant_type, code, redirect_uri, client_id } = req.body || {}
+    const { grant_type, code, code_verifier } = req.body || {}
 
     if (grant_type !== 'authorization_code' || !code) {
       res.status(400).json({ error: 'invalid_grant' })
@@ -118,6 +133,27 @@ export function createOAuthServer(clientId: string, clientSecret: string) {
     if (!session || session.used) {
       res.status(400).json({ error: 'invalid_grant' })
       return
+    }
+
+    if (session.codeChallenge) {
+      if (!code_verifier) {
+        res.status(400).json({ error: 'invalid_grant', error_description: 'code_verifier required' })
+        return
+      }
+      const method = session.codeChallengeMethod || 'S256'
+      let computedChallenge: string
+      if (method === 'S256') {
+        computedChallenge = base64URLEncode(sha256(code_verifier as string))
+      } else if (method === 'plain') {
+        computedChallenge = code_verifier as string
+      } else {
+        res.status(400).json({ error: 'invalid_grant', error_description: `Unsupported code_challenge_method: ${method}` })
+        return
+      }
+      if (computedChallenge !== session.codeChallenge) {
+        res.status(400).json({ error: 'invalid_grant', error_description: 'code_verifier mismatch' })
+        return
+      }
     }
 
     session.used = true

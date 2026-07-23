@@ -19,7 +19,7 @@ export function createAuthMiddleware() {
     mcpPath: '/',
     oauth: {
       resource: `${baseUrl}/api/mcp/spechub/mcp`,
-      authorizationServers: [`${baseUrl}/oauth`],
+      authorizationServers: [`${baseUrl}`],
       scopesSupported: ['openid', 'email'],
       validateToken: async (token: string) => {
         try {
@@ -31,11 +31,12 @@ export function createAuthMiddleware() {
           if (!payload) {
             return { valid: false, error: 'invalid_token', errorDescription: 'Token payload is empty' }
           }
-          if (!payload.hd || !allowedDomains.includes(payload.hd)) {
+          const domain = payload.hd || (payload.email ? payload.email.split('@')[1] : null)
+          if (!domain || !allowedDomains.includes(domain)) {
             return {
               valid: false,
               error: 'access_denied',
-              errorDescription: `Domain ${payload.hd || 'unknown'} is not allowed`,
+              errorDescription: `Domain ${domain || 'unknown'} is not allowed`,
             }
           }
           return {

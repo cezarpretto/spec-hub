@@ -186,6 +186,20 @@ npm run start  # Produção (Express + auth se configurado)
 
 ---
 
+### 2026-07-23 — Google OAuth fixes
+
+Correções no fluxo OAuth que impediam autenticação com contas pessoais do Google e clientes MCP.
+
+**O que mudou:**
+- Validação de domínio usando `payload.email` como fallback quando `payload.hd` está ausente — contas `@gmail.com` (sem hosted domain) agora são aceitas
+- Implementado PKCE (Proof Key for Code Exchange) com S256 — `code_challenge` armazenado na sessão e `code_verifier` validado no token endpoint
+- `authorizationServers` alterado para URL raiz, corrigindo descoberta de metadados OAuth (RFC 8414)
+- `code_challenge_methods_supported: ['S256']` adicionado ao well-known do authorization server
+- `express.urlencoded()` middleware adicionado — token endpoint agora parseia `application/x-www-form-urlencoded` (padrão RFC 6749)
+- `grant_types_supported` inclui `refresh_token`
+
+---
+
 ### 2026-07-23 — MCP Resources + Local validation harness
 
 Workflows do SpecHub agora expostos como MCP Resources, eliminando dependência de skills `.cursor/` locais. Adicionado pipeline de validação local.
