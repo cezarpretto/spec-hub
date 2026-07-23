@@ -186,6 +186,26 @@ npm run start  # Produção (Express + auth se configurado)
 
 ---
 
+### 2026-07-23 — MCP Resources + Local validation harness
+
+Workflows do SpecHub agora expostos como MCP Resources, eliminando dependência de skills `.cursor/` locais. Adicionado pipeline de validação local.
+
+**O que mudou:**
+- `spechub://workflows/save-artifacts` — skill de publicação de artefatos exposta como MCP Resource endereçável
+- `src/mastra/workflows/` — novo módulo para expor workflows como resources URI-addressable
+- `npm run lint` — pipeline completo: `typecheck → check:circular → eslint → test`
+- `eslint` + `madge` — detecta `no-duplicate-imports` e dependências circulares automaticamente
+- Circular import entre módulos de workflow removido
+
+**Comandos:**
+```bash
+npm run lint         # typecheck + circular + eslint + test
+npm run lint:eslint  # ESLint only
+npm run check:circular # madge
+```
+
+---
+
 ## Começando
 
 ### Pré-requisitos

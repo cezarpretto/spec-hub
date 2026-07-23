@@ -39,6 +39,9 @@ npm run dev          # mastra dev (starts HTTP server on PORT, default 3456)
 npm run build        # mastra build
 npm run test         # vitest run
 npm run typecheck    # tsc --noEmit
+npm run lint         # full pipeline: typecheck → check:circular → eslint → test
+npm run lint:eslint  # ESLint only (no-duplicate-imports, unused-vars, etc.)
+npm run check:circular # madge: detect circular dependencies
 docker compose up -d # start PostgreSQL/pgvector on :5434
 ```
 
@@ -162,6 +165,7 @@ node -e "import('./src/infrastructure/database/umzug.js').then(m => m.umzug.down
 - Tests validate JSON input -> JSON output contracts of tools.
 - Factory functions (`buildInput()`) provide test data.
 - Test file naming: `tests/<tool-name>.test.ts`.
+- Always run `npm run lint` before committing — it runs typecheck, circular dep check, ESLint, and tests in sequence.
 
 ### Startup flow
 

@@ -6,6 +6,7 @@ import { createGetRepoTasksTool } from './tools/get-repo-tasks.js'
 import { createUpdateTaskStatusTool } from './tools/update-task-status.js'
 import { createUpdateSpecChunkTool } from './tools/update-spec-chunk.js'
 import { createListCardDocumentsTool } from './tools/list-card-documents.js'
+import { listWorkflowResources, getWorkflowContent } from './workflows/index.js'
 import type { AppContainer } from '../container/types.js'
 
 export function createSpecHubMcpServer(container: AppContainer) {
@@ -76,6 +77,15 @@ This works because "API" and "Contracts" appear as words in that section's text.
 - **Skipping \`list_card_documents\`**: Never go straight to \`search_spec_context\` without confirming what documents exist.
 - **Skipping \`get_feature_overview\`**: Never search blind. Use the heading index.
 - **Reconstructing the full spec**: There is no "get full content" tool. \`search_spec_context\` + \`get_feature_overview\` is sufficient — stop after 2 searches and start implementing.`,
+
+    resources: {
+      listResources: async () => listWorkflowResources(),
+      getResourceContent: async ({ uri }) => {
+        const content = await getWorkflowContent(uri)
+        if (!content) throw new Error(`Workflow not found: ${uri}`)
+        return content
+      },
+    },
 
     tools: {
       save_spec: createSaveSpecTool(container),
