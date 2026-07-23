@@ -163,7 +163,42 @@ describe('auth middleware', () => {
     expect(res.status).toBe(401)
   })
 
-  it('passes POST /mcp with valid token from allowed domain', async () => {
+  it('passes POST /mcp with valid token from allowed domain (email domain, no hd)', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
+    process.env.GOOGLE_ALLOWED_DOMAINS = 'gmail.com'
+
+    const { __mockVerifyIdToken } = await import('google-auth-library')
+    __mockVerifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        sub: 'user123',
+        email: 'user@gmail.com',
+        exp: 9999999999,
+      }),
+    })
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createHttpServer } = await import('../src/mastra/server.js')
+    const { MCPServer } = await import('@mastra/mcp')
+
+    const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
+    const authMiddleware = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authMiddleware)
+    port = await startTestServer(app)
+
+    const res = await fetchUrl('/mcp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        Authorization: 'Bearer valid-token-gmail',
+      },
+      body: jsonRpcInitialize,
+    })
+    expect(res.status).toBe(200)
+  })
+
+  it('passes POST /mcp with valid token from allowed domain (with hd)', async () => {
     process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
     process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
