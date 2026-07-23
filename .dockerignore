@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.git
+.gitignore
+.pgdata/
+.scratch/
+.cursor/
+.opencode/
+.mastra/
+tests/
+*.md
+scripts/
+docker-compose.yml
+Dockerfile
+.dockerignore
+.eslintcache
