@@ -107,7 +107,7 @@ export class SequelizeSpecRepository implements ISpecRepository {
           ELSE 0
         END AS vector_score,
         CASE
-          WHEN content_tsv IS NOT NULL THEN ts_rank(content_tsv, plainto_tsquery('english', :queryText))
+          WHEN content IS NOT NULL THEN ts_rank(to_tsvector('portuguese', content), plainto_tsquery('portuguese', :queryText))
           ELSE 0
         END AS text_score
       FROM specs WHERE id = :specId`,

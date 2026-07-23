@@ -63,7 +63,7 @@ describe('SequelizeSpecRepository.searchContext', () => {
     const [sql, options] = mocks.mockQuery.mock.calls[0] as [string, { replacements: Record<string, unknown>; type: QueryTypes }]
 
     expect(sql).toContain('embedding::vector <=> :queryEmbedding::vector')
-    expect(sql).toContain("ts_rank(content_tsv, plainto_tsquery('english', :queryText))")
+    expect(sql).toContain("ts_rank(to_tsvector('portuguese', content), plainto_tsquery('portuguese', :queryText))")
     expect(sql).toContain('1 - (embedding::vector <=>')
     expect(options.type).toBe(QueryTypes.SELECT)
     expect(options.replacements.specId).toBe(specId)
