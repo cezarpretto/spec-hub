@@ -1,4 +1,4 @@
-import { QueryTypes } from 'sequelize'
+import { QueryTypes, type Transaction } from 'sequelize'
 import type { ISpecRepository, UpsertSpecParams, UpsertSpecResult, SearchContextParams, SearchContextResult, Spec, ListBySourceKeyResult, GetSectionResult } from '../../domain/index.js'
 import { SpecModel, TaskModel } from '../database/models/index.js'
 
@@ -15,8 +15,13 @@ type SpecRow = {
 }
 
 export class SequelizeSpecRepository implements ISpecRepository {
+  private toTx(tx?: unknown): Transaction | undefined {
+    return tx as Transaction | undefined
+  }
+
   async upsert(params: UpsertSpecParams, tx?: unknown): Promise<UpsertSpecResult> {
-    const txOpts = tx ? { transaction: tx as any } : {}
+    const transaction = this.toTx(tx)
+    const txOpts = transaction ? { transaction } : {}
     const existing = await SpecModel.findOne({
       where: { source_type: params.source_type, source_key: params.source_key },
       attributes: ['id', 'content'],
@@ -35,23 +40,14 @@ export class SequelizeSpecRepository implements ISpecRepository {
       return { spec_id: row.id, status: 'updated', oldContent: row.content }
     }
 
-    const created = tx
-      ? await SpecModel.create({
-          source_type: params.source_type,
-          source_key: params.source_key,
-          title: params.title,
-          content: params.content,
-          embedding: embeddingStr,
-          updated_by: params.updated_by,
-        }, { transaction: tx as any })
-      : await SpecModel.create({
-          source_type: params.source_type,
-          source_key: params.source_key,
-          title: params.title,
-          content: params.content,
-          embedding: embeddingStr,
-          updated_by: params.updated_by,
-        })
+    const created = await SpecModel.create({
+      source_type: params.source_type,
+      source_key: params.source_key,
+      title: params.title,
+      content: params.content,
+      embedding: embeddingStr,
+      updated_by: params.updated_by,
+    }, txOpts)
 
     return { spec_id: created.get('id') as string, status: 'created', oldContent: null }
   }
@@ -191,26 +187,18 @@ export class SequelizeSpecRepository implements ISpecRepository {
   }
 
   async updateContent(specId: string, content: string, embedding: number[], updatedBy: string, tx?: unknown): Promise<Spec | null> {
-    const existing = tx
-      ? await SpecModel.findByPk(specId, { transaction: tx as any } as any)
-      : await SpecModel.findByPk(specId)
+    const transaction = this.toTx(tx)
+    const txOpts = transaction ? { transaction } : {}
+    const existing = await SpecModel.findByPk(specId, txOpts)
     if (!existing) return null
 
     const embeddingStr = `[${embedding.join(',')}]`
 
-    if (tx) {
-      await existing.update({
-        content,
-        embedding: embeddingStr,
-        updated_by: updatedBy,
-      }, { transaction: tx as any } as any)
-    } else {
-      await existing.update({
-        content,
-        embedding: embeddingStr,
-        updated_by: updatedBy,
-      })
-    }
+    await existing.update({
+      content,
+      embedding: embeddingStr,
+      updated_by: updatedBy,
+    }, txOpts)
 
     const row = existing.get({ plain: true }) as SpecRow
     return {
