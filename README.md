@@ -352,6 +352,59 @@ node -e "import('./src/infrastructure/database/umzug.js').then(m => m.umzug.down
 
 ---
 
+## Docker
+
+A imagem pública está disponível no Docker Hub: [`cezarpretto/spechub-mcp`](https://hub.docker.com/r/cezarpretto/spechub-mcp).
+
+**Multi-plataforma:** `linux/amd64` e `linux/arm64` — funciona em Intel/AMD e Apple Silicon.
+
+### Pull
+
+```bash
+docker pull cezarpretto/spechub-mcp:latest
+```
+
+### Rodar
+
+O container precisa de acesso ao PostgreSQL (com pgvector) e de um volume para cache do modelo de embedding:
+
+```bash
+docker run -d \
+  --name spechub \
+  -p 3456:3456 \
+  -e DATABASE_HOST=host.docker.internal \
+  -e DATABASE_PORT=5434 \
+  -e DATABASE_USER=spechub \
+  -e DATABASE_PASSWORD=spechub \
+  -e DATABASE_NAME=spechub \
+  -v spechub-model-cache:/app/.cache \
+  cezarpretto/spechub-mcp:latest
+```
+
+Opcionalmente, ative autenticação Google OAuth:
+
+```bash
+-e GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com \
+-e GOOGLE_CLIENT_SECRET=xxxx \
+-e GOOGLE_ALLOWED_DOMAINS=sua-empresa.com
+```
+
+### Primeiro startup
+
+O modelo de embedding `paraphrase-multilingual-MiniLM-L12-v2` (~470 MB) é baixado automaticamente no primeiro start e armazenado em `/app/.cache`. O volume `spechub-model-cache` persiste o cache entre restarts, evitando re-download.
+
+As migrações do banco rodam automaticamente no startup — zero configuração manual de schema.
+
+### Health check
+
+```bash
+curl http://localhost:3456/health
+```
+
+O container tem `HEALTHCHECK` embutido (intervalo de 30s, timeout de 5s, 3 retries).
+
+---
+
 ## Stack
 
 | Camada | Tecnologia |
