@@ -20,7 +20,7 @@ export function createGoogleOAuthAuth(opts?: { publicUrl?: string }): { strategy
     id: 'google-oauth',
 
     isConfigured() {
-      return true
+      return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_ALLOWED_DOMAINS)
     },
 
     async validateToken(token: string) {
