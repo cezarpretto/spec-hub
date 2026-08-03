@@ -58,13 +58,13 @@ describe('auth middleware', () => {
     delete process.env.GOOGLE_CLIENT_SECRET
     delete process.env.GOOGLE_ALLOWED_DOMAINS
 
-    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
     const { createHttpServer } = await import('../src/mastra/server.js')
     const { MCPServer } = await import('@mastra/mcp')
 
     const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
-    const authMiddleware = createAuthMiddleware()
-    const app = createHttpServer(specHubMcpServer, authMiddleware)
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
     port = await startTestServer(app)
 
     const res = await fetchUrl('/health')
@@ -73,18 +73,18 @@ describe('auth middleware', () => {
     expect(body).toEqual({ status: 'ok' })
   })
 
-  it('health endpoint returns 200 with auth configured', async () => {
+  it('health endpoint returns 200 with Google OAuth configured', async () => {
     process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
     process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
 
-    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
     const { createHttpServer } = await import('../src/mastra/server.js')
     const { MCPServer } = await import('@mastra/mcp')
 
     const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
-    const authMiddleware = createAuthMiddleware()
-    const app = createHttpServer(specHubMcpServer, authMiddleware)
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
     port = await startTestServer(app)
 
     const res = await fetchUrl('/health')
@@ -93,36 +93,80 @@ describe('auth middleware', () => {
     expect(body).toEqual({ status: 'ok' })
   })
 
-  it('rejects POST /mcp without token when auth is configured', async () => {
-    process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
-    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
-    process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
+  it('health endpoint returns 200 with only access token configured', async () => {
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
+    delete process.env.GOOGLE_ALLOWED_DOMAINS
+    process.env.SPECHUB_ACCESS_TOKENS = 'secret-token-123'
 
-    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
     const { createHttpServer } = await import('../src/mastra/server.js')
     const { MCPServer } = await import('@mastra/mcp')
 
     const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
-    const authMiddleware = createAuthMiddleware()
-    const app = createHttpServer(specHubMcpServer, authMiddleware)
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
+    port = await startTestServer(app)
+
+    const res = await fetchUrl('/health')
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toEqual({ status: 'ok' })
+  })
+
+  it('rejects POST /mcp without token when Google OAuth is configured', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
+    process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
+    const { createHttpServer } = await import('../src/mastra/server.js')
+    const { MCPServer } = await import('@mastra/mcp')
+
+    const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
     port = await startTestServer(app)
 
     const res = await fetchUrl('/mcp', { method: 'POST' })
     expect(res.status).toBe(401)
   })
 
-  it('rejects POST /mcp with invalid token when auth is configured', async () => {
-    process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
-    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
-    process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
+  it('rejects POST /mcp without token when only access token is configured', async () => {
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
+    delete process.env.GOOGLE_ALLOWED_DOMAINS
+    process.env.SPECHUB_ACCESS_TOKENS = 'secret-token-123'
 
-    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
     const { createHttpServer } = await import('../src/mastra/server.js')
     const { MCPServer } = await import('@mastra/mcp')
 
     const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
-    const authMiddleware = createAuthMiddleware()
-    const app = createHttpServer(specHubMcpServer, authMiddleware)
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
+    port = await startTestServer(app)
+
+    const res = await fetchUrl('/mcp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+      body: jsonRpcInitialize,
+    })
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects POST /mcp with invalid token when Google OAuth is configured', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
+    process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
+    const { createHttpServer } = await import('../src/mastra/server.js')
+    const { MCPServer } = await import('@mastra/mcp')
+
+    const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
     port = await startTestServer(app)
 
     const res = await fetchUrl('/mcp', {
@@ -130,6 +174,87 @@ describe('auth middleware', () => {
       headers: { Authorization: 'Bearer invalid-token' },
     })
     expect(res.status).toBe(401)
+  })
+
+  it('rejects POST /mcp with invalid access token', async () => {
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
+    delete process.env.GOOGLE_ALLOWED_DOMAINS
+    process.env.SPECHUB_ACCESS_TOKENS = 'secret-token-123'
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
+    const { createHttpServer } = await import('../src/mastra/server.js')
+    const { MCPServer } = await import('@mastra/mcp')
+
+    const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
+    port = await startTestServer(app)
+
+    const res = await fetchUrl('/mcp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        Authorization: 'Bearer wrong-token',
+      },
+      body: jsonRpcInitialize,
+    })
+    expect(res.status).toBe(401)
+  })
+
+  it('passes POST /mcp with valid access token', async () => {
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
+    delete process.env.GOOGLE_ALLOWED_DOMAINS
+    process.env.SPECHUB_ACCESS_TOKENS = 'secret-token-123'
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
+    const { createHttpServer } = await import('../src/mastra/server.js')
+    const { MCPServer } = await import('@mastra/mcp')
+
+    const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
+    port = await startTestServer(app)
+
+    const res = await fetchUrl('/mcp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        Authorization: 'Bearer secret-token-123',
+      },
+      body: jsonRpcInitialize,
+    })
+    expect(res.status).toBe(200)
+  })
+
+  it('passes POST /mcp with one of multiple access tokens', async () => {
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
+    delete process.env.GOOGLE_ALLOWED_DOMAINS
+    process.env.SPECHUB_ACCESS_TOKENS = 'token-alpha, token-beta, token-gamma'
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
+    const { createHttpServer } = await import('../src/mastra/server.js')
+    const { MCPServer } = await import('@mastra/mcp')
+
+    const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
+    port = await startTestServer(app)
+
+    const res = await fetchUrl('/mcp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        Authorization: 'Bearer token-beta',
+      },
+      body: jsonRpcInitialize,
+    })
+    expect(res.status).toBe(200)
   })
 
   it('rejects POST /mcp with token from non-allowed domain', async () => {
@@ -147,13 +272,13 @@ describe('auth middleware', () => {
       }),
     })
 
-    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
     const { createHttpServer } = await import('../src/mastra/server.js')
     const { MCPServer } = await import('@mastra/mcp')
 
     const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
-    const authMiddleware = createAuthMiddleware()
-    const app = createHttpServer(specHubMcpServer, authMiddleware)
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
     port = await startTestServer(app)
 
     const res = await fetchUrl('/mcp', {
@@ -177,13 +302,13 @@ describe('auth middleware', () => {
       }),
     })
 
-    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
     const { createHttpServer } = await import('../src/mastra/server.js')
     const { MCPServer } = await import('@mastra/mcp')
 
     const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
-    const authMiddleware = createAuthMiddleware()
-    const app = createHttpServer(specHubMcpServer, authMiddleware)
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
     port = await startTestServer(app)
 
     const res = await fetchUrl('/mcp', {
@@ -213,13 +338,13 @@ describe('auth middleware', () => {
       }),
     })
 
-    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
     const { createHttpServer } = await import('../src/mastra/server.js')
     const { MCPServer } = await import('@mastra/mcp')
 
     const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
-    const authMiddleware = createAuthMiddleware()
-    const app = createHttpServer(specHubMcpServer, authMiddleware)
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
     port = await startTestServer(app)
 
     const res = await fetchUrl('/mcp', {
@@ -228,6 +353,70 @@ describe('auth middleware', () => {
         'Content-Type': 'application/json',
         Accept: 'application/json, text/event-stream',
         Authorization: 'Bearer valid-token',
+      },
+      body: jsonRpcInitialize,
+    })
+    expect(res.status).toBe(200)
+  })
+
+  it('passes POST /mcp with access token when both strategies are configured', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
+    process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
+    process.env.SPECHUB_ACCESS_TOKENS = 'secret-token-123'
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
+    const { createHttpServer } = await import('../src/mastra/server.js')
+    const { MCPServer } = await import('@mastra/mcp')
+
+    const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
+    port = await startTestServer(app)
+
+    const res = await fetchUrl('/mcp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        Authorization: 'Bearer secret-token-123',
+      },
+      body: jsonRpcInitialize,
+    })
+    expect(res.status).toBe(200)
+  })
+
+  it('passes POST /mcp with Google id_token when both strategies are configured', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
+    process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
+    process.env.SPECHUB_ACCESS_TOKENS = 'secret-token-123'
+
+    const { __mockVerifyIdToken } = await import('google-auth-library')
+    __mockVerifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        sub: 'user456',
+        email: 'user@example.com',
+        hd: 'example.com',
+        exp: 9999999999,
+      }),
+    })
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
+    const { createHttpServer } = await import('../src/mastra/server.js')
+    const { MCPServer } = await import('@mastra/mcp')
+
+    const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
+    const authSetup = createAuthMiddleware()
+    const app = createHttpServer(specHubMcpServer, authSetup)
+    port = await startTestServer(app)
+
+    const res = await fetchUrl('/mcp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        Authorization: 'Bearer google-id-token-456',
       },
       body: jsonRpcInitialize,
     })
@@ -249,14 +438,14 @@ describe('auth middleware', () => {
       }),
     })
 
-    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
     const { createHttpServer } = await import('../src/mastra/server.js')
     const { MCPServer } = await import('@mastra/mcp')
 
     const publicUrl = 'https://spechub.example.com'
     const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
-    const authMiddleware = createAuthMiddleware({ publicUrl })
-    const app = createHttpServer(specHubMcpServer, authMiddleware)
+    const authSetup = createAuthMiddleware({ publicUrl })
+    const app = createHttpServer(specHubMcpServer, authSetup)
     port = await startTestServer(app)
 
     const res = await fetchUrl('/mcp', {
@@ -277,19 +466,19 @@ describe('auth middleware', () => {
     process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
 
     const publicUrl = 'https://spechub.example.com'
-    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
     const { createHttpServer } = await import('../src/mastra/server.js')
     const { createOAuthServer } = await import('../src/mastra/oauth.js')
     const { MCPServer } = await import('@mastra/mcp')
 
     const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
-    const authMiddleware = createAuthMiddleware({ publicUrl })
+    const authSetup = createAuthMiddleware({ publicUrl })
     const oauthHandlers = createOAuthServer(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
       { publicUrl },
     )
-    const app = createHttpServer(specHubMcpServer, authMiddleware, oauthHandlers)
+    const app = createHttpServer(specHubMcpServer, authSetup, oauthHandlers)
     port = await startTestServer(app)
 
     const res = await fetchUrl('/authorize?response_type=code&client_id=test&redirect_uri=http://127.0.0.1/callback', {
@@ -307,18 +496,18 @@ describe('auth middleware', () => {
     process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
     process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
 
-    const { createAuthMiddleware } = await import('../src/mastra/auth.js')
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
     const { createHttpServer } = await import('../src/mastra/server.js')
     const { createOAuthServer } = await import('../src/mastra/oauth.js')
     const { MCPServer } = await import('@mastra/mcp')
 
     const specHubMcpServer = new MCPServer({ name: 'test', version: '1.0.0', tools: {} })
-    const authMiddleware = createAuthMiddleware()
+    const authSetup = createAuthMiddleware()
     const oauthHandlers = createOAuthServer(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
     )
-    const app = createHttpServer(specHubMcpServer, authMiddleware, oauthHandlers)
+    const app = createHttpServer(specHubMcpServer, authSetup, oauthHandlers)
     port = await startTestServer(app)
 
     const res = await fetchUrl('/authorize?response_type=code&client_id=test&redirect_uri=http://127.0.0.1/callback', {
@@ -330,5 +519,45 @@ describe('auth middleware', () => {
     const googleUrl = new URL(location!)
     const portValue = parseInt(process.env.PORT || '3456', 10)
     expect(googleUrl.searchParams.get('redirect_uri')).toBe(`http://localhost:${portValue}/oauth/callback`)
+  })
+
+  it('returns proper AuthSetup with only access-token enabled', async () => {
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
+    delete process.env.GOOGLE_ALLOWED_DOMAINS
+    process.env.SPECHUB_ACCESS_TOKENS = 'my-secret-token'
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
+
+    const authSetup = createAuthMiddleware()
+    expect(authSetup).toBeDefined()
+    expect(authSetup!.oauthEnabled).toBe(false)
+    expect(authSetup!.enabledStrategies).toEqual(['access-token'])
+  })
+
+  it('returns proper AuthSetup with both strategies enabled', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret'
+    process.env.GOOGLE_ALLOWED_DOMAINS = 'example.com'
+    process.env.SPECHUB_ACCESS_TOKENS = 'my-secret-token'
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
+
+    const authSetup = createAuthMiddleware()
+    expect(authSetup).toBeDefined()
+    expect(authSetup!.oauthEnabled).toBe(true)
+    expect(authSetup!.enabledStrategies).toEqual(['access-token', 'google-oauth'])
+  })
+
+  it('returns undefined when no auth is configured', async () => {
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
+    delete process.env.GOOGLE_ALLOWED_DOMAINS
+    delete process.env.SPECHUB_ACCESS_TOKENS
+
+    const { createAuthMiddleware } = await import('../src/mastra/auth/index.js')
+
+    const authSetup = createAuthMiddleware()
+    expect(authSetup).toBeUndefined()
   })
 })

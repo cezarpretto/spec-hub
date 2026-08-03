@@ -158,6 +158,25 @@ Toda operação de escrita registra entrada no changelog.
 
 ## Changelog
 
+### 2026-08-03 — Agent Access Tokens
+
+Autenticação por token estático para agentes de IA que não conseguem fazer o fluxo interativo do Google OAuth.
+
+**O que mudou:**
+- `SPECHUB_ACCESS_TOKENS` — nova env var com lista de tokens separada por vírgula
+- Agentes autenticam via `Authorization: Bearer <token>` sem login no navegador
+- Estratégias de autenticação compõem com semântica OR: token estático OU Google OAuth
+- Comparação de tokens com `timingSafeEqual` (SHA-256 hash) — resistente a timing attacks
+
+**Como ativar:**
+```bash
+SPECHUB_ACCESS_TOKENS=token-para-agente-1,token-para-agente-2
+```
+
+Sem `SPECHUB_ACCESS_TOKENS` e sem `GOOGLE_*`, o servidor permanece sem autenticação.
+
+---
+
 ### 2026-07-22 — Google OAuth Authentication
 
 Adicionada autenticação opcional via Google OAuth 2.0 com Authorization Code flow.
@@ -268,6 +287,7 @@ O padrão funciona com o docker-compose:
 ```
 DATABASE_URL=postgresql://spechub:spechub@localhost:5434/spechub
 PORT=3456
+SPECHUB_ACCESS_TOKENS=token1,token2  # opcional: autenticação por token fixo para agentes de IA
 ```
 
 ### 4. Rodar
@@ -381,9 +401,13 @@ docker run -d \
   cezarpretto/spechub-mcp:latest
 ```
 
-Opcionalmente, ative autenticação Google OAuth:
+Opcionalmente, ative autenticação. Qualquer combinação é válida (OR):
 
 ```bash
+# Token estático para agentes de IA
+-e SPECHUB_ACCESS_TOKENS=token1,token2
+
+# Google OAuth para humanos (browser login)
 -e GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com \
 -e GOOGLE_CLIENT_SECRET=xxxx \
 -e GOOGLE_ALLOWED_DOMAINS=sua-empresa.com
