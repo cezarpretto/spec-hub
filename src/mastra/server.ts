@@ -1,34 +1,23 @@
 import express from 'express'
 import type { MCPServer } from '@mastra/mcp'
-
-interface AuthMiddlewareResult {
-  proceed: boolean
-  handled: boolean
-  tokenValidation?: {
-    valid: boolean
-    claims?: Record<string, unknown>
-    subject?: string
-  }
-}
-
-type OAuthMiddleware = (req: import('http').IncomingMessage, res: import('http').ServerResponse, url: URL) => Promise<AuthMiddlewareResult>
+import type { AuthSetup } from './auth/types.js'
 
 function getUrl(req: import('express').Request, port: number) {
   return new URL(req.url || '/', `http://localhost:${port}`)
 }
 
-function applyAuthClaims(req: import('express').Request, result: AuthMiddlewareResult) {
+function applyAuthClaims(req: import('express').Request, result: { tokenValidation?: { claims?: Record<string, unknown> } }) {
   if (result.tokenValidation?.claims) {
     ;(req as any).auth = result.tokenValidation.claims
   }
 }
 
-async function handleMcp(specHubMcpServer: MCPServer, authMiddleware: OAuthMiddleware | undefined, req: import('express').Request, res: import('express').Response, httpPath: string) {
+async function handleMcp(specHubMcpServer: MCPServer, authSetup: AuthSetup | undefined, req: import('express').Request, res: import('express').Response, httpPath: string) {
   const port = parseInt(process.env.PORT || '3456', 10)
   const url = getUrl(req, port)
 
-  if (authMiddleware) {
-    const result = await authMiddleware(req, res, url)
+  if (authSetup) {
+    const result = await authSetup.middleware(req, res, url)
     if (!result.proceed) return
     applyAuthClaims(req, result)
   }
@@ -38,7 +27,7 @@ async function handleMcp(specHubMcpServer: MCPServer, authMiddleware: OAuthMiddl
 
 export function createHttpServer(
   specHubMcpServer: MCPServer,
-  authMiddleware: OAuthMiddleware | undefined,
+  authSetup: AuthSetup | undefined,
   oauthHandlers?: {
     handleRegister: (req: express.Request, res: express.Response) => Promise<void>
     handleAuthorize: (req: express.Request, res: express.Response) => Promise<void>
@@ -56,11 +45,11 @@ export function createHttpServer(
     res.json({ status: 'ok' })
   })
 
-  if (authMiddleware) {
+  if (authSetup?.oauthEnabled) {
     app.get('/.well-known/oauth-protected-resource', async (req, res) => {
       const port = parseInt(process.env.PORT || '3456', 10)
       const url = new URL(req.url || '/', `http://localhost:${port}`)
-      await authMiddleware(req, res, url)
+      await authSetup.middleware(req, res, url)
     })
 
     app.get('/.well-known/oauth-authorization-server', (_req, res) => {
@@ -93,19 +82,19 @@ export function createHttpServer(
   }
 
   app.all('/mcp', async (req, res) => {
-    await handleMcp(specHubMcpServer, authMiddleware, req, res, '/mcp')
+    await handleMcp(specHubMcpServer, authSetup, req, res, '/mcp')
   })
 
   app.all(`${mcpBase}/mcp`, async (req, res) => {
-    await handleMcp(specHubMcpServer, authMiddleware, req, res, `${mcpBase}/mcp`)
+    await handleMcp(specHubMcpServer, authSetup, req, res, `${mcpBase}/mcp`)
   })
 
   app.all(`${mcpBase}/sse`, async (req, res) => {
     const port = parseInt(process.env.PORT || '3456', 10)
     const url = getUrl(req, port)
 
-    if (authMiddleware) {
-      const result = await authMiddleware(req, res, url)
+    if (authSetup) {
+      const result = await authSetup.middleware(req, res, url)
       if (!result.proceed) return
       applyAuthClaims(req, result)
     }
@@ -123,8 +112,8 @@ export function createHttpServer(
     const port = parseInt(process.env.PORT || '3456', 10)
     const url = getUrl(req, port)
 
-    if (authMiddleware) {
-      const result = await authMiddleware(req, res, url)
+    if (authSetup) {
+      const result = await authSetup.middleware(req, res, url)
       if (!result.proceed) return
       applyAuthClaims(req, result)
     }

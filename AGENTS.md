@@ -189,6 +189,13 @@ Database connection uses individual vars first, falls back to `DATABASE_URL`.
 | `DATABASE_NAME`     | —            | PostgreSQL database (takes priority over URL) |
 | `DATABASE_URL`      | `postgresql://spechub:spechub@localhost:5434/spechub` | Fallback connection string |
 | `PORT`              | `3456`        | HTTP server port                            |
+| `PUBLIC_URL`         | —            | Externally reachable server URL (used for OAuth redirects) |
+| `SPECHUB_ACCESS_TOKENS` | —         | Comma-separated static tokens for AI agent auth (pass via `Authorization: Bearer`) |
+| `GOOGLE_CLIENT_ID`    | —            | Google OAuth client ID                      |
+| `GOOGLE_CLIENT_SECRET`| —            | Google OAuth client secret                  |
+| `GOOGLE_ALLOWED_DOMAINS` | —         | Comma-separated allowed Google domains     |
+
+Auth supports multiple strategies in OR semantics: any valid token (static or Google OAuth) authenticates the request.
 
 ## Docker
 
