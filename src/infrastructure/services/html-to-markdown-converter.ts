@@ -88,14 +88,16 @@ export class HtmlToMarkdownConverter {
     }
     const normalized = normalizeCodeMacros(html)
     const sanitized = sanitizeHtml(normalized, { allowedTags, allowedAttributes })
-    try {
-      return this.turndown.turndown(sanitized)
-    } catch {
-      return this.turndown.turndown(html)
-    }
+    return this.turndown.turndown(sanitized)
   }
 
   private registerConfluenceRules(): void {
+    // IMPORTANT: confluenceUnknownMacro is the catch-all and must stay the FIRST
+    // rule registered here. TurndownService scans rules in REVERSE registration
+    // order, so the catch-all registered first is checked LAST — specific rules
+    // registered after it win. Reordering this block will silently break macro
+    // detection (e.g. status, panel, code, callout will all render as
+    // `[macro: <name>]` placeholders).
     this.turndown.addRule('confluenceUnknownMacro', {
       filter: (node) => node.nodeName === 'AC:STRUCTURED-MACRO',
       replacement: (_content, node) =>

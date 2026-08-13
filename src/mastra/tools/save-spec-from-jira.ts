@@ -29,11 +29,11 @@ export function createSaveSpecFromJiraTool(container: AppContainer) {
         }).optional(),
       }).passthrough().describe('Jira issue envelope JSON as returned by the Jira MCP getJiraIssue tool.'),
       description: z.string().describe('Issue description body in the format specified by description_format.'),
-      description_format: z.enum(['markdown', 'adf', 'html']).describe("Format of the description body. Use 'adf' for Jira ADF JSON (best fidelity), 'markdown' for simplified text, or 'html' for HTML."),
+      description_format: z.enum(['html', 'markdown', 'adf']).describe("Format of the description body. Use 'adf' for Jira ADF JSON (best fidelity), 'markdown' for simplified text, or 'html' for HTML."),
       comments: z.array(z.object({
         author: z.string().describe('Comment author display name or identifier.'),
         body: z.string().describe('Comment body in the format specified by body_format.'),
-        body_format: z.enum(['markdown', 'adf', 'html']).describe('Format of the comment body.'),
+        body_format: z.enum(['html', 'markdown', 'adf']).describe('Format of the comment body.'),
         created: z.string().describe("ISO timestamp of the comment (e.g. '2026-08-10T14:30:00Z')."),
       })).optional().describe('Optional list of comments to include in the Spec, ordered chronologically.'),
       updated_by: z.string().describe("Identifier of who/what is making the change (e.g. 'claude-code', 'cezar@corp')."),
