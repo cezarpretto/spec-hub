@@ -21,7 +21,7 @@ src/
       migrations/                      # Individual migration files (001-xxx.ts, 002-xxx.ts, ...)
       models/                          # sequelize.define() model definitions
     repositories/                      # Sequelize implementations of domain repository interfaces
-    services/                          # XenovaEmbeddingService (implements IEmbeddingService)
+    services/                          # XenovaEmbeddingService, HtmlToMarkdownConverter, AdfToMarkdownConverter, ContentConverter
   container/                           # IoC / DI (Awilix)
     index.ts                           # buildContainer() — registers all singletons
     types.ts                           # AppContainer type alias
@@ -51,7 +51,7 @@ docker compose up -d # start PostgreSQL/pgvector on :5434
 
 - **Domain** (`src/domain/`): interfaces only. No imports from other layers. Defines entities, repository abstractions (ISP), and service abstractions.
 - **Application** (`src/application/`): use cases with constructor injection. Depend only on domain interfaces. DTOs define input/output contracts.
-- **Infrastructure** (`src/infrastructure/`): Sequelize models, repository implementations, embedding service. Implements domain interfaces.
+- **Infrastructure** (`src/infrastructure/`): Sequelize models, repository implementations, embedding service, content converters (HTML/ADF → Markdown via Turndown + adf-to-md). Implements domain interfaces.
 - **Interface** (`src/mastra/`): MCP tools as factory functions receiving the container. Resolve use cases at runtime.
 - **Container** (`src/container/`): Awilix IoC. All registrations are SINGLETON. Wires interfaces -> implementations.
 
@@ -84,7 +84,7 @@ container.register({ saveSpecUseCase: asValue(mockUseCase) })
 - Each tool file exports a factory function that receives `AppContainer`.
 - `inputSchema` defines the JSON contract. `outputSchema` defines the return shape.
 - `execute(inputData)` resolves the use case from container and delegates.
-- Tool IDs use `snake_case`: `save_spec`, `get_feature_overview`, `search_spec_context`.
+- Tool IDs use `snake_case`: `save_spec`, `get_feature_overview`, `search_spec_context`, `save_spec_from_jira`, `save_spec_from_confluence`.
 
 ### Database (Sequelize)
 

@@ -1,8 +1,10 @@
 import type { Resource, MCPServerResourceContent } from '@mastra/mcp'
 import { SAVE_ARTIFACTS_WORKFLOW, type WorkflowResource } from './save-artifacts.js'
+import { IMPORT_FROM_SOURCES_WORKFLOW } from './import-from-sources.js'
 
 const workflows: WorkflowResource[] = [
   SAVE_ARTIFACTS_WORKFLOW,
+  IMPORT_FROM_SOURCES_WORKFLOW,
 ]
 
 export async function listWorkflowResources(): Promise<Resource[]> {

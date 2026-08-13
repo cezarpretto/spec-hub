@@ -7,6 +7,8 @@ import { createUpdateTaskStatusTool } from './tools/update-task-status.js'
 import { createUpdateSpecChunkTool } from './tools/update-spec-chunk.js'
 import { createListCardDocumentsTool } from './tools/list-card-documents.js'
 import { createGetSectionTool } from './tools/get-section.js'
+import { createSaveSpecFromConfluenceTool } from './tools/save-spec-from-confluence.js'
+import { createSaveSpecFromJiraTool } from './tools/save-spec-from-jira.js'
 import { listWorkflowResources, getWorkflowContent } from './workflows/index.js'
 import type { AppContainer } from '../container/types.js'
 
@@ -19,6 +21,28 @@ export function createSpecHubMcpServer(container: AppContainer) {
     instructions: `## SpecHub Workflow Guide
 
 Follow this pattern for EVERY spec-related task. Skipping steps or over-calling tools wastes tokens and creates noise.
+
+### Importing Specs from Jira / Confluence
+
+When the spec already lives in Jira or Confluence, **import it in one call** — don't rewrite manually.
+
+- \`save_spec_from_jira(source_key, issue_envelope, description, description_format, comments?, updated_by)\`
+- \`save_spec_from_confluence(source_key, page_envelope, content, content_format, updated_by)\`
+
+Both accept the envelope JSON + body returned by the source MCP (\`getJiraIssue\` / \`getConfluencePage\`) and convert in-process. The tool composes a metadata header (e.g. \`**Source**: JIRA · PROJ-123 · **Status**: In Progress\`) plus the converted body and (for Jira) comments, then persists via \`save_spec\` — embedding + changelog included. The resulting spec is searchable via \`search_spec_context\` and editable via \`update_spec_chunk\` like any other.
+
+**Format choice — prefer the rich format:**
+
+| Source | \`format\` | Fidelity | When |
+| :--- | :--- | :--- | :--- |
+| Jira | \`adf\` | High (preserves panels, tables, badges, mentions) | **Recommended default** |
+| Jira | \`markdown\` | Low (simplified text — loses tables/panels) | Only when you intentionally want a stripped-down version |
+| Confluence | \`html\` | High (storage format with macros) | **Recommended default** |
+| Confluence | \`markdown\` | Low | Only when you intentionally want a stripped-down version |
+
+Rule: **always prefer the rich format**. You can simplify later with \`update_spec_chunk\`, but you cannot reconstruct a table that was lost during the simplified conversion.
+
+Before importing, run \`list_card_documents(source_key)\` to discover existing docs and avoid silent overwrites. For local artifacts (techspec.md, architecture.md, tasks.md from \`cy-create-techspec\`), use the \`spechub://workflows/save-artifacts\` MCP resource instead.
 
 ### Golden Path (3 calls max for most tasks)
 
@@ -97,6 +121,8 @@ This works because "API" and "Contracts" appear as words in that section's text.
       update_spec_chunk: createUpdateSpecChunkTool(container),
       list_card_documents: createListCardDocumentsTool(container),
       get_section: createGetSectionTool(container),
+      save_spec_from_confluence: createSaveSpecFromConfluenceTool(container),
+      save_spec_from_jira: createSaveSpecFromJiraTool(container),
     },
   })
 }

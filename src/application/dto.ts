@@ -107,3 +107,49 @@ export interface ListCardDocumentsOutput {
   source_key: string
   documents: { spec_id: string; source_type: string; title: string; updated_at: string }[]
 }
+
+export interface JiraIssueEnvelope {
+  key?: string
+  fields?: {
+    summary?: string
+    status?: { name?: string }
+    priority?: { name?: string }
+    assignee?: { displayName?: string; emailAddress?: string } | null
+    reporter?: { displayName?: string; emailAddress?: string } | null
+    labels?: string[]
+    created?: string
+    updated?: string
+  }
+}
+
+export interface JiraCommentInput {
+  author: string
+  body: string
+  body_format: 'markdown' | 'adf' | 'html'
+  created: string
+}
+
+export interface ImportSpecFromJiraInput {
+  source_key: string
+  issue_envelope: JiraIssueEnvelope
+  description: string
+  description_format: 'markdown' | 'adf' | 'html'
+  comments?: JiraCommentInput[]
+  updated_by: string
+}
+
+export interface ConfluencePageEnvelope {
+  id?: string
+  title?: string
+  space?: { key?: string; name?: string }
+  version?: { number?: number; by?: { displayName?: string }; when?: string }
+  history?: { createdBy?: { displayName?: string }; createdDate?: string }
+}
+
+export interface ImportSpecFromConfluenceInput {
+  source_key: string
+  page_envelope: ConfluencePageEnvelope
+  content: string
+  content_format: 'markdown' | 'html' | 'adf'
+  updated_by: string
+}

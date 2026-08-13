@@ -13,4 +13,4 @@ export type {
   ITaskRepository,
   IChangelogRepository,
 } from './repositories.js'
-export type { IEmbeddingService } from './services.js'
+export type { IEmbeddingService, ContentFormat, IContentConverter } from './services.js'
