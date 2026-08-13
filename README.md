@@ -117,6 +117,8 @@ O SpecHub centraliza PRD, spec técnica, design e tarefas — tudo versionado, b
 | Ferramenta | O que faz |
 |---|---|
 | `save_spec` | Persiste uma spec com embedding vetorial. UPSERT por `source_type` + `source_key`. |
+| `save_spec_from_jira` | Importa um issue do Jira (envelope + description + comments) e converte de ADF/HTML/Markdown pra Markdown limpo com header de metadados. Prefira `adf` para fidelidade máxima. |
+| `save_spec_from_confluence` | Importa uma página do Confluence (envelope + body) e converte de HTML/ADF/Markdown pra Markdown limpo com header de metadados. Prefira `html` para fidelidade máxima. |
 
 ### Recuperar contexto
 
@@ -157,6 +159,27 @@ Toda operação de escrita registra entrada no changelog.
 ---
 
 ## Changelog
+
+### 2026-08-12 — Importação de Jira / Confluence
+
+Duas novas tools permitem importar specs que já existem em ferramentas externas, sem conversão manual do lado do agente. Workflow MCP `spechub://workflows/import-from-sources` expõe o passo-a-passo completo.
+
+**O que mudou:**
+- `save_spec_from_jira(source_key, issue_envelope, description, description_format, comments?, updated_by)` — aceita envelope + description + comments do Jira MCP, converte via ContentConverter (suporta `adf`, `html`, `markdown`), monta header de metadados (Source/Status/Assignee/Reporter/Priority/Labels/Created/Updated) e persiste via `save_spec`.
+- `save_spec_from_confluence(source_key, page_envelope, content, content_format, updated_by)` — equivalente para páginas Confluence (suporta `html`, `adf`, `markdown`), com header (Source/Space/Author/Version/Created/Updated).
+- `IContentConverter` no domínio + 3 implementações em `src/infrastructure/services/`: `HtmlToMarkdownConverter` (Turndown + sanitize-html + regras para macros Confluence: info/note/warning/tip, code, expand, panel, status, table; fallback `[macro: name]`), `AdfToMarkdownConverter` (valida ADF v1, normaliza mention/status, delega para `adf-to-md`), `ContentConverter` (fachada que roteia por formato, `markdown` é pass-through).
+- Deps novas: `turndown ^7.2.0`, `sanitize-html ^2.13.0`, `adf-to-md ^1.2.1` + `@types/turndown`, `@types/sanitize-html`.
+
+**Recomendação de formato:**
+- Jira: prefira `adf` (preserva tables, panels, status badges, mentions).
+- Confluence: prefira `html` (preserva macros como info/note/code/expand/panel/status).
+- `markdown` é útil apenas quando você quer deliberadamente uma versão simplificada — é lossy (perde estrutura).
+
+**Workflow MCP:**
+- `spechub://workflows/save-artifacts` — para artefatos locais (techspec/architecture/tasks gerados por `cy-create-techspec`).
+- `spechub://workflows/import-from-sources` — para issues/pages que já existem em Jira/Confluence.
+
+---
 
 ### 2026-08-03 — Agent Access Tokens
 
